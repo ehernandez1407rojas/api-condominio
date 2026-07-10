@@ -1,0 +1,25 @@
+services:
+
+  web:
+    
+    container_name: condominio_api
+
+    environment:
+      POSTGRES_HOST: host.docker.internal    
+
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+
+    env_file:
+      - .env
+
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - .:/codigo
+
+    restart: unless-stopped
+
+    command: python manage.py runserver 0.0.0.0:8000
