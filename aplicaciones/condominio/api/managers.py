@@ -1,11 +1,12 @@
 from django.db import models
 
-from django.contrib.auth.models import AbstractUser, BaseUserManager
-from django.core.validators import validate_email
-from django.core.exceptions import ValidationError
+from django.contrib.auth.models import  BaseUserManager  ## AbstractUser,
+## from django.core.validators import validate_email
+## from django.core.exceptions import ValidationError
+
 import re
 
-from ..models import *
+## from ..models import *
 
 class UsuarioManager(BaseUserManager):
     def create_user(self, email_whatsapp, nombre_completo, password=None, **extra_fields):
@@ -17,7 +18,12 @@ class UsuarioManager(BaseUserManager):
             nombre_completo=nombre_completo,
             **extra_fields
         )
-        user.set_password(password)
+
+        if password:
+            user.set_password(password)
+        else:
+            user.set_unusable_password()
+            
         user.save(using=self._db)
         return user
 
@@ -54,21 +60,21 @@ class CondominioManager(models.Manager):
     def condominio_por_folio(self, folio):
         return self.filter(id = folio)
     
-class CasaDepartamentoManager(models.Manager):
-    def lista_casas_departamentos_posteriores(self, anio):
+class PropiedadManager(models.Manager):
+    def lista_propiedes_posteriores(self, anio):
         return self.filter(
             fecha_creacion__year__gt=anio
         )
              
-    def casas_departamentos_por_titular(self, titular):
+    def propiedes_por_propietario(self, propietario):
         return self.filter(
-            titular__icontains=titular
-        ).order_by('titular')
+            propietario__nombre_completo__icontains=propietario
+        ).order_by('propietario__nombre_completo')
     
-    def casas_departamentos_por_titular_y_condominio(self, titular, condominio):
+    def propiedades_por_propietario_y_condominio( self, propietario, condominio ):
         return self.filter(
-            titular__icontains=titular,
+            propietario__nombre_completo__icontains=propietario,
             condominio=condominio
-        ).order_by('titular')
+        ).order_by('propietario__nombre_completo')
                             
                             

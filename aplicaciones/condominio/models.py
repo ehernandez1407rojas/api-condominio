@@ -2,9 +2,18 @@ from django.db import models
 from django.contrib.auth.models import User
 import os
 
-from .api.managers import *
+## from .api.managers import *
 from django.conf import settings
 
+from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+
+from .api.managers import (
+    CondominioManager,
+    UsuarioManager,
+    PropiedadManager,
+)
 
 # class CondominioManager(models.Manager):
     
@@ -27,38 +36,50 @@ def ruta_comprobante_condominio(instance,  filename):
 
 # Create your models here.
 # --- Modelo Abstracto (para la auditoria de creacion y modificacion) ---
-class CreoModificoAbstract(models.Model):
+class CreoModificoAbstract(models.Model):    
     usuario_creo = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='%(class)s_creado', blank=True, null=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     usuario_modifico = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='%(class)s_modificado', blank=True, null=True)
-    fecha_modificacion = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+    fecha_modificacion = models.DateTimeField(auto_now=True, blank=True, null=True)
     
     class Meta:
         abstract = True
-        
-# --- Modelo Abstracto (para los catalogos estaticos) ---
-class CatalogoBase(CreoModificoAbstract):
-    clave = models.CharField(max_length=50)  # Ej: "ordinaria", "mensual"
-    descripcion = models.CharField(max_length=100)  # Ej: "Cuota ordinaria", "Pago mensual"
-    orden = models.DecimalField(max_digits=5, decimal_places=2)  # Para ordenar en listas
+
+class AplicaDesdeHastaAbstract(models.Model):    
+    aplica_desde = models.DateField(blank=False, null=False, help_text="Fecha inicial de vigencia de la tabla correspondiente")
+    aplica_hasta = models.DateField(blank=True, null=True, help_text="Fecha final de vigencia de la tabla correspondiente")
     
     class Meta:
-        abstract = True  # ¡No crea tabla en la BD!
-
-class TipoEstadoCondominio(CatalogoBase):
+        abstract = True        
+        
+class EstadoCondominio(models.Model):
+    clave = models.CharField(max_length=50)  # Ej: "ACTIVO", "SUSPENDIDO", "CANCELADO"
+    descripcion = models.CharField(max_length=100)  # Ej: "ACTIVO", "SUSPENDIDO", "CANCELADO"
+    orden = models.DecimalField(max_digits=5, decimal_places=2)  # Para ordenar en listas
     class Meta:
-        verbose_name = "Tipo Estado Condominio"
+        verbose_name = "Estado Condominio"
+        
+    def __str__(self):
+        return f'{self.clave} {self.descripcion}'  
+
+class Rol(models.Model):
+    clave = models.CharField(max_length=50, unique=True)  # Ej: "ADMINISTRADOR", "PROPIETARIO", "CONSERJE"
+    descripcion = models.CharField(max_length=100)  # Ej: "ADMINISTRADOR represenatnte del condominio", "PROPIETARIO dueño de la casa  o departamento", "CONCERJE"
+    orden = models.DecimalField(max_digits=5, decimal_places=2)  # Para ordenar en listas    
+
+    class Meta:
+        verbose_name = "Rol"
         
     def __str__(self):
         return f'{self.clave} {self.descripcion}'  
         
-
+# Modelo con el objeto de la aplicacion
 class Condominio(CreoModificoAbstract):
     nombre = models.CharField(max_length=50, unique=True,help_text="Máximo 50 caracteres" )
     nombre_corto = models.CharField(max_length=20, unique=True, default="", help_text="Máximo 20 caracteres")
     direccion = models.CharField(max_length=100, unique=True)
     inicio_servicio = models.DateField(blank=False, null=False)     
-    estado_condominio =  models.ForeignKey(TipoEstadoCondominio, on_delete=models.PROTECT, default=1)  
+    estado_condominio =  models.ForeignKey(EstadoCondominio, on_delete=models.PROTECT, default=1)      
     
     objects = CondominioManager()    
     
@@ -67,8 +88,23 @@ class Condominio(CreoModificoAbstract):
         verbose_name_plural = 'Condominios'      
         
     def __str__(self):
-        return f'{self.nombre} {self.direccion}'     
+        return f'{self.nombre} {self.direccion}'    
+
+# --- Modelo Abstracto (para la auditoria de creacion y modificacion agregando el Condominio) ---
+class CreoModificoCondominioAbstract(CreoModificoAbstract):    
+    condominio =  models.ForeignKey(Condominio, on_delete=models.PROTECT)
+    
+    class Meta:
+        abstract = True     
         
+# --- Modelo Abstracto (para los catalogos estaticos) ---
+class CatalogoBase(CreoModificoCondominioAbstract):    
+    clave = models.CharField(max_length=50)  # Ej: "ordinaria", "mensual"
+    descripcion = models.CharField(max_length=100)  # Ej: "Cuota ordinaria", "Pago mensual"
+    orden = models.DecimalField(max_digits=5, decimal_places=2)  # Para ordenar en listas
+    
+    class Meta:
+        abstract = True  # ¡No crea tabla en la BD!
 
 # --- Catálogos Concretos (Heredan de CatalogoBase) ---
 class TipoCuota(CatalogoBase):
@@ -85,8 +121,7 @@ class TipoFrecuencia(CatalogoBase):
     def __str__(self):
         return f'{self.clave} {self.descripcion}'  
         
-class TipoGasto(CatalogoBase):
-    condominio = models.ForeignKey(Condominio, on_delete=models.PROTECT)
+class TipoGasto(CatalogoBase):    
     quien_autoriza = models.CharField(max_length=50, blank=True, null=True)
     
     class Meta:        
@@ -95,14 +130,7 @@ class TipoGasto(CatalogoBase):
         
     def __str__(self):
         return f'{self.condominio.nombre} {self.clave}'  
-        
-class TipoRol(CatalogoBase):
-    class Meta:
-        verbose_name = "Tipo Rol"
-        
-    def __str__(self):
-        return f'{self.clave} {self.descripcion}'  
-        
+                
 class TipoPeriodoCuota(CatalogoBase):
     class Meta:
         verbose_name = "Tipo Periodo de Cuota"
@@ -112,19 +140,22 @@ class TipoPeriodoCuota(CatalogoBase):
 
 # ---tabla Usuario----
 
-class Usuario(AbstractUser, CreoModificoAbstract):
-    TIPO_USUARIO_CHOICES = [
-        ('ADMIN', 'Administrador'),
-        ('PROPIETARIO', 'Propietario'),
-        ('CONSERJE', 'Conserje'),
-    ]
+class Usuario(AbstractUser, CreoModificoCondominioAbstract):    
     
     # Eliminamos campos que no usaremos del AbstractUser
     username = None
     first_name = None
     last_name = None
-    email = None
-    
+    email = None    
+
+    # Sobrescribimos 'condominio' para permitir nulos
+    condominio = models.ForeignKey(
+        Condominio, 
+        on_delete=models.PROTECT, 
+        null=True,   # Permite NULL en la base de datos
+        blank=True   # Permite vacío en formularios/admin/serializers
+    )
+
     # Nuestros campos personalizados
     email_whatsapp = models.CharField(
         'correo o whatsapp',
@@ -134,31 +165,11 @@ class Usuario(AbstractUser, CreoModificoAbstract):
     )
     nombre_completo = models.CharField('nombre completo', max_length=150)
     
-    # Campos específicos
-    tipo_usuario = models.CharField(
-        'tipo de usuario',
-        max_length=20,
-        choices=TIPO_USUARIO_CHOICES,
-        default='PROPIETARIO'
-    )
+    # Campos específicos    
     
     esta_activo = models.BooleanField('activo', default=True)
-    is_staff = models.BooleanField(null=True, blank=True, default=False)
-    
-    # Propiedad (solo para propietarios)
-    casa_departamento = models.ForeignKey(
-        'CasaDepartamento', 
-        on_delete=models.SET_NULL, 
-        null=True, 
-        blank=True,
-        related_name='casa_departamento',
-        verbose_name='casa departamento asignado'
-    )
-    # Para relacionarlo con el condominio
-    condominio = models.ForeignKey( Condominio, on_delete=models.PROTECT,
-        related_name='usuarios',  blank=True, null=True,
-        verbose_name='condominio al que pertenece' )       
-    
+    is_staff = models.BooleanField(null=True, blank=True, default=False)                 
+           
     USERNAME_FIELD = 'email_whatsapp'
     REQUIRED_FIELDS = ['nombre_completo']
     
@@ -170,7 +181,7 @@ class Usuario(AbstractUser, CreoModificoAbstract):
         ordering = ['nombre_completo']
     
     def __str__(self):
-        return f'{self.nombre_completo} ({self.get_tipo_usuario_display()})'
+        return f'{self.nombre_completo} )'
     
     def clean(self):
         super().clean()
@@ -200,12 +211,74 @@ class Usuario(AbstractUser, CreoModificoAbstract):
     def es_whatsapp(self):
         """Determina si el identificador es un número de WhatsApp"""
         return not self.es_email        
-        
-        
+
+
+# la relacion usuario con los diferentes roles que puede tener por condominio
+class UsuarioRol(CreoModificoAbstract):
+    condominio = models.ForeignKey(
+        Condominio,
+        on_delete=models.CASCADE,
+        related_name="usuarios"
+    )
+
+    usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.CASCADE,
+        related_name="roles"
+    )
+
+    rol = models.ForeignKey(
+        Rol,
+        on_delete=models.CASCADE,
+        related_name="usuarios"
+    )
+
+    fecha_fin = models.DateField(
+        null=True, 
+        blank=True, 
+        help_text="Fecha en la que concluye la vigencia del rol (Null indica vigencia actual)"
+    )
+    activo = models.BooleanField(
+        default=True, 
+        help_text="Indica si el rol está vigente en la sesión actual"
+    )
+
+    def clean(self):
+        super().clean()
+        # Validar que solo haya un ADMINISTRADOR activo
+        if self.rol.clave == 'ADMINISTRADOR' and self.activo:
+            qs = UsuarioRol.objects.filter(
+                condominio=self.condominio,
+                rol__clave='ADMINISTRADOR',
+                activo=True
+            )
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            
+            if qs.exists():
+                raise ValidationError(
+                    f"El condominio '{self.condominio.nombre}' ya tiene un administrador activo."
+                )
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)        
+
+    class Meta:
+        verbose_name = "Usuario Rol"
+        constraints = [            
+            # Constraint: Evitar duplicados del mismo usuario con mismo rol activo en mismo condominio
+            models.UniqueConstraint(
+                fields=['usuario', 'condominio', 'rol'],
+                condition=models.Q(activo=True),
+                name='uq_usuario_condominio_rol_activo'
+            )
+        ]   
+
 # --- tablas transaccionales ---        
         
-class Cuota(CreoModificoAbstract):
-    condominio = models.ForeignKey(Condominio, on_delete=models.PROTECT)
+class Cuota(CreoModificoCondominioAbstract):
+    
     nombre = models.CharField(max_length=30)
     tipo_cuota = models.ForeignKey(TipoCuota, on_delete=models.PROTECT)
     nombre = models.CharField(max_length=30)
@@ -221,26 +294,28 @@ class Cuota(CreoModificoAbstract):
     def __str__(self):
         return f'{self.condominio.nombre} {self.nombre}'       
         
-class CasaDepartamento(CreoModificoAbstract):
-    condominio = models.ForeignKey(Condominio, on_delete=models.PROTECT)   
+class Propiedad(CreoModificoCondominioAbstract):    
     nombre = models.CharField(max_length=50)
     direccion = models.CharField(max_length=100)
-    titular = models.CharField(max_length=50)
-    celular = models.CharField(max_length=30, unique=True)
-    correo = models.EmailField(max_length=30, unique=True, default='')
-    rol = models.ForeignKey(TipoRol, on_delete=models.PROTECT)
+    propietario = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        related_name="propiedades"
+        ) 
     
-    objects = CasaDepartamentoManager()               
+    objects = PropiedadManager()               
     
     class Meta:
-        verbose_name = 'Casa Departamento'
-        verbose_name_plural = 'Casas Departamentos' 
+        verbose_name = 'Propiedad'
+        verbose_name_plural = 'Propiedades' 
     def __str__(self):
-        return f'{self.nombre} {self.direccion} {self.titular}' 
+        return f'{self.nombre} {self.direccion} {self.propietario.nombre_completo}' 
+
+# la relacioin del Usuario miembro con su propiedad casa o departamento
+    
         
-class CuotaCobrada(CreoModificoAbstract):
-    condominio = models.ForeignKey(Condominio, on_delete=models.PROTECT)   
-    casa_departamento = models.ForeignKey(CasaDepartamento, on_delete=models.PROTECT)
+class CuotaCobrada(CreoModificoCondominioAbstract):    
+    propiedad = models.ForeignKey(Propiedad, on_delete=models.PROTECT)
     importe_cobrado = models.DecimalField(max_digits=12, decimal_places=2)
     tipo_cuota = models.ForeignKey(TipoCuota, on_delete=models.PROTECT)
     periodo_cuota = models.ForeignKey(TipoPeriodoCuota, on_delete=models.PROTECT)
@@ -253,10 +328,9 @@ class CuotaCobrada(CreoModificoAbstract):
         verbose_name_plural = 'Cuotas Cobradas' 
 
     def __str__(self):
-        return f'{self.id}  {self.casa_departamento} {self.periodo_cuota} {self.fecha} {self.importe_cobrado}'         
+        return f'{self.id}  {self.propiedad} {self.periodo_cuota} {self.fecha} {self.importe_cobrado}'         
                 
-class Proveedor(CreoModificoAbstract):
-    condominio = models.ForeignKey(Condominio, on_delete=models.PROTECT)   
+class Proveedor(CreoModificoCondominioAbstract):    
     nombre = models.CharField(max_length=50)
     direccion = models.CharField(max_length=100)
     titular = models.CharField(max_length=50)
@@ -273,8 +347,7 @@ class Proveedor(CreoModificoAbstract):
     def __str__(self):
         return f'{self.nombre} {self.direccion} '
                         
-class GastoPagado(CreoModificoAbstract):
-    condominio = models.ForeignKey(Condominio, on_delete=models.PROTECT)   
+class GastoPagado(CreoModificoCondominioAbstract):    
     proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT)
     importe_pagado = models.DecimalField(max_digits=12, decimal_places=2)
     gasto = models.ForeignKey(TipoGasto, on_delete=models.PROTECT)    
@@ -290,3 +363,19 @@ class GastoPagado(CreoModificoAbstract):
         
     def __str__(self):
         return f'{self.id} {self.fecha} {self.proveedor} {self.gasto} {self.importe_pagado}'      
+
+class Comite (CreoModificoCondominioAbstract, AplicaDesdeHastaAbstract):
+    nombre = models.CharField(max_length=50, help_text="Nombre que identifica el comite")
+    activo = models.BooleanField(
+            default=True, 
+            help_text="Indica si el rol está vigente en la sesión actual"
+        ) 
+
+class ComiteComposicion (CreoModificoCondominioAbstract):
+    comite = models.ForeignKey(Comite, on_delete=models.PROTECT)
+    usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT)
+    funcion_integrante = models.CharField(max_length=50, help_text="Indicacion del rol o funcion del miembro del comite")
+    activo = models.BooleanField(
+            default=True, 
+            help_text="Indica si el ese miembro del comite esta activo o no"
+        ) 

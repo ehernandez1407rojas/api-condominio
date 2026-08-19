@@ -1,19 +1,109 @@
 from django.shortcuts import render
 from drf_spectacular.utils import extend_schema
+from django.core.exceptions import ValidationError
 
 from rest_framework.views import APIView
 from rest_framework.generics import ListAPIView, RetrieveAPIView, CreateAPIView, UpdateAPIView
 from rest_framework.response import Response
 from rest_framework import generics, status
-from .serializers import CustomTokenObtainPairSerializer, UsuarioSerializer
+from rest_framework.permissions import IsAuthenticated
+from .serializers import (
+    CustomTokenObtainPairSerializer, 
+    UsuarioSerializer, 
+    RegistrarCondominioSerializer, 
+    RegistrarCondominioResponseSerializer,
+    CambiarPasswordSerializer,
+    PropiedadSerializer, CambiarPasswordResponseSerializer, CondominioSerializer, PaginationSerializer, CuotaCobradaSerializer,
+    RegistrarPropietarioResponseSerializer, RegistrarPropietarioSerializer
+
+)
+
+from .use_cases import (RegistrarCondominioUseCase, CambiarPasswordUseCase, RegistrarPropietarioUseCase)
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from ..models import *
-from .serializers import *
+
 
 class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
+class RegistrarCondominioView(APIView):
+
+    @extend_schema(
+        request=RegistrarCondominioSerializer,
+        responses={201: RegistrarCondominioResponseSerializer},
+        summary="Registrar condominio y usuario administrador",
+        description=(
+            "Registra un condominio junto con su primer usuario "
+            "con rol ADMINISTRADOR dentro de una única transacción."
+        ),
+    )
+    def post(self, request, *args, **kwargs):
+
+        # 1. Validar los datos recibidos.
+        serializer = RegistrarCondominioSerializer(
+            data=request.data
+        )
+        serializer.is_valid(raise_exception=True)
+
+        # 2. Ejecutar el caso de uso.
+        resultado = RegistrarCondominioUseCase.execute(
+            **serializer.validated_data
+        )
+
+        # 3. Serializar la respuesta.
+        response_serializer = RegistrarCondominioResponseSerializer(
+            resultado
+        )
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+
+class CambiarPasswordView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=CambiarPasswordSerializer,
+        responses={
+        200: CambiarPasswordResponseSerializer
+            },
+        summary="Cambia el password de un usuario ya autenticado",
+        description=(
+            "Cambia el password de un usuario "
+            ),
+        )
+
+    def post(self, request):
+
+        serializer = CambiarPasswordSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            CambiarPasswordUseCase.execute(
+                user=request.user,
+                password_actual=serializer.validated_data['password_actual'],
+                password_nueva=serializer.validated_data['password_nueva']
+            )
+
+        except ValidationError as e:
+            return Response(
+                e.message_dict,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {
+                'detail': 'La contraseña se cambió correctamente.'
+            },
+            status=status.HTTP_200_OK
+        )    
+    
 class RegistrarUsuarioView(generics.CreateAPIView):
     queryset = Usuario.objects.all()
     serializer_class = UsuarioSerializer
@@ -72,73 +162,54 @@ class CondominioPorFolio(ListAPIView):
         queryset = Condominio.objects.condominio_por_folio(folio)
         return queryset   
     
-class CasasDepartamentosPorFecha(ListAPIView):
-    serializer_class = CasaDepartamentoSerializer
+class PropiedadesPorFecha(ListAPIView):
+    serializer_class = PropiedadSerializer
     pagination_class = PaginationSerializer
     
     def get_queryset(self):
         anio = self.kwargs['anio']
-        queryset = CasaDepartamento.objects.lista_casas_departamentos_posteriores(anio)
+        queryset = Propiedad.objects.lista_propiedades_posteriores(anio)
         return queryset
     
-class CasaDepartamentoPorTitular(ListAPIView):
-    serializer_class = CasaDepartamentoSerializer
+class PropiedadPorPropietario(ListAPIView):
+    serializer_class = PropiedadSerializer
     
     def get_queryset(self):
-        titular = self.request.query_params.get('titular', '')
-        queryset = CasaDepartamento.objects.casas_departamentos_por_titular(titular)        
-        return queryset
+        propietario = self.request.query_params.get('propietario', '')
+        return Propiedad.objects.propiedades_por_propietario(propietario)
     
-class CasaDepartamentoPorTitularYCondominio(ListAPIView):
-    serializer_class = CasaDepartamentoSerializer
+class PropiedadPorPropietarioYCondominio(ListAPIView):
+    serializer_class = PropiedadSerializer
     pagination_class = PaginationSerializer
-    
+
     def get_queryset(self):
-        titular = self.request.query_params.get('titular', '')
-        condominio = self.request.query_params.get('condominio', 1)
-        queryset = CasaDepartamento.objects.casas_departamentos_por_titular_y_condominio(titular, condominio)        
-        return queryset
+        propietario = self.request.query_params.get('propietario', '')
+        condominio = self.request.query_params.get('condominio')
+
+        return Propiedad.objects.propiedades_por_propietario_y_condominio(
+            propietario,
+            condominio
+        )
     
-class CasaDepartamentoDetalle(RetrieveAPIView):
-    serializer_class = CasaDepartamentoSerializer
-     ## queryset = CasaDepartamento.objects.all()
-     
-    def retrieve(self, request, *args, **kwargs):
-        instancia = self.get_object()
-        serializers = self.get_serializer(instancia)
-        return Response(serializers.data)
-     
-    def get_queryset(self):
-        queryset = CasaDepartamento.objects.filter(            
-            condominio__icontains = "Cabacano" 
-        )        
-        return queryset
+class PropiedadDetalle(RetrieveAPIView):    
+    serializer_class = PropiedadSerializer
+    queryset = Propiedad.objects.all()
         
-    
-class SaludoPostman(APIView):
-    
-    def get(self, request):
-        return Response({"estado": "ok el GET"})
-    
-    def post(self, request):
-        return Response({"estado": "ok el POST"})
-    
-    def delete(self, request):
-        return Response({"estado": "ok el DELETEee"})
         
 class CuotaCobradaGuardar(CreateAPIView):
     serializer_class = CuotaCobradaSerializer
     queryset = CuotaCobrada.objects.all()
     
-class CasaDepartamentoCreateAPIView(CreateAPIView):
-    serializer_class = CasaDepartamentoSerializer
-    queryset = CasaDepartamento.objects.all()
+class PropiedadCreateAPIView(CreateAPIView):
+    serializer_class = PropiedadSerializer
+    queryset = Propiedad.objects.all()
     
-class CasaDepartamentoUpdateAPIView(UpdateAPIView):
-    serializer_class = CasaDepartamentoSerializer
-    queryset = CasaDepartamento.objects.all()
+class PropiedadUpdateAPIView(UpdateAPIView):
+    serializer_class = PropiedadSerializer
+    queryset = Propiedad.objects.all()
 
-    
+      
+
 @extend_schema(
     request=CondominioSerializer,
     responses=CondominioSerializer,
@@ -149,4 +220,52 @@ class CondominioCreateAPIView(CreateAPIView):
     
 class CondominioUpdateAPIView(UpdateAPIView):
     serializer_class = CondominioSerializer
-    queryset = CasaDepartamento.objects.all()
+    queryset = Condominio.objects.all()    
+
+
+class RegistrarPropietarioView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=RegistrarPropietarioSerializer,
+        responses={201: RegistrarPropietarioResponseSerializer},
+        summary="Registrar propietario y propiedad",
+        description=(
+            "Registra una propiedad junto con su usuario propietario, "
+            "con rol PROPIETARIO, dentro de una única transacción."
+        ),
+    )
+    def post(self, request, *args, **kwargs):
+
+        # 1. Validar los datos recibidos.
+        serializer = RegistrarPropietarioSerializer(
+            data=request.data
+        )
+        serializer.is_valid(raise_exception=True)
+
+        # 2. Ejecutar el caso de uso.
+        
+        try:
+            resultado = RegistrarPropietarioUseCase.execute(
+                administrador=request.user,
+                **serializer.validated_data
+            )
+
+        except ValidationError as e:
+            return Response(
+                {
+                    'detail': e.messages
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 3. Serializar la respuesta.
+        response_serializer = RegistrarPropietarioResponseSerializer(
+            resultado
+        )
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED
+        )

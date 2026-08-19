@@ -12,7 +12,7 @@ from .models import *
 # admin.site.register(TipoEstadoCondominio)
 
 # admin.site.register(Cuota)
-# admin.site.register(CasaDepartamento)
+# admin.site.register(Propiedad)
 # admin.site.register(CuotaCobrada)
 # admin.site.register(GastoPagado)
 
@@ -21,14 +21,7 @@ from .models import *
 ## admin.site.register(Proveedor)
 ## admin.site.register(Condominio)
 
-# @admin.register(Proveedor)
-# class ProveedorAdmin(admin.ModelAdmin):
-#     list_display=(
-#         'id',
-#         'nombre',
-#         'direccion',
-#         'titular',
-#     )
+
 
 
 class BaseAdmin(admin.ModelAdmin):
@@ -57,16 +50,16 @@ class UsuarioAdmin(BaseAdmin):
         # Obtenemos los campos base del padre
         base_fields = super().get_list_display(request)
         # Agregamos campos adicionales específicos para Usuario
-        return base_fields + ['get_tipo_usuario_display', 'esta_activo']
+        return base_fields 
     
-    list_filter = ('tipo_usuario', 'condominio', 'esta_activo')
+    # list_filter = (  'esta_activo')
     search_fields = ('email_whatsapp', 'nombre_completo')
-    list_select_related = ('condominio', 'casa_departamento')
+    
     
     fieldsets = (
-        (None, {'fields': ('email_whatsapp', 'nombre_completo', 'tipo_usuario')}),
+        (None, {'fields': ('email_whatsapp', 'nombre_completo')}),
         ('Permisos', {'fields': ('esta_activo', 'is_staff')}),
-        ('Relaciones', {'fields': ('condominio', 'casa_departamento')}),
+        
     )
     
     def save_model(self, request, obj, form, change):
@@ -89,8 +82,8 @@ class CondominioAdmin(BaseAdmin):
 class CuotaAdmin(BaseAdmin):
     pass
 
-@admin.register(CasaDepartamento)
-class CasaDepartamentoAdmin(BaseAdmin):
+@admin.register(Propiedad)
+class PropiedadAdmin(BaseAdmin):
     pass
 
 @admin.register(CuotaCobrada)
@@ -117,10 +110,10 @@ class TipoFrecuenciaAdmin(BaseAdmin):
 class TipoPeriodoCuotaAdmin(BaseAdmin):
     pass
 
-@admin.register(TipoRol)
-class TipoRolAdmin(BaseAdmin):
+@admin.register(Rol)
+class RolAdmin(BaseAdmin):
     pass
 
-@admin.register(TipoEstadoCondominio)
+@admin.register(EstadoCondominio)
 class TipoEstadoCondominioAdmin(BaseAdmin):
     pass
