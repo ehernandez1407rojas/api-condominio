@@ -6,11 +6,10 @@ from django.utils import timezone
 from ...models import (
     Usuario,
     UsuarioRol,
-    Rol,
-    Propiedad,
+    Rol,    
 )
 
-class RegistrarPropietarioUseCase:
+class RegistrarConserjeUseCase:
 
     @staticmethod
     @transaction.atomic
@@ -18,9 +17,7 @@ class RegistrarPropietarioUseCase:
         *,
         administrador,
         email_whatsapp,
-        nombre_completo,
-        nombre,
-        direccion,
+        nombre_completo,       
     ):
 
         # 1. Obtener el condominio del administrador.
@@ -47,7 +44,7 @@ class RegistrarPropietarioUseCase:
                 'El usuario no tiene permisos de administrador en este condominio.'
         )
 
-        # 3. Buscar al usuario por email_whatsapp.
+        # 3. Buscar al usuario conserje por email_whatsapp.
         usuario = Usuario.objects.filter(
             email_whatsapp=email_whatsapp
         ).first()
@@ -76,10 +73,10 @@ class RegistrarPropietarioUseCase:
 
         # 4. Obtener el rol PROPIETARIO.
         rol_propietario = Rol.objects.get(
-            clave="PROPIETARIO"
+            clave="CONSERJE"
         )
 
-        # 4.1. Buscar si ya tiene el rol PROPIETARIO activo.
+        # 4.1. Buscar si ya tiene el rol CONSERJE activo.
         usuario_rol = UsuarioRol.objects.filter(
             condominio=condominio,
             usuario=usuario,
@@ -94,21 +91,9 @@ class RegistrarPropietarioUseCase:
                 usuario=usuario,
                 rol=rol_propietario,
                 usuario_creo=administrador,
-            )
+            )        
 
-        # 5. Crear la propiedad para ese usuario.
-        propiedad = Propiedad.objects.create(
-            nombre=nombre,
-            direccion=direccion,
-            condominio=condominio,
-            propietario=usuario,
-            usuario_creo=administrador,
-        )
-
-        
-
-        return {
-            "propiedad": propiedad,
+        return {            
             "usuario": usuario,
             "usuario_rol": usuario_rol,
         }

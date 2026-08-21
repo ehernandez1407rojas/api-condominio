@@ -117,3 +117,11 @@ class RolAdmin(BaseAdmin):
 @admin.register(EstadoCondominio)
 class TipoEstadoCondominioAdmin(BaseAdmin):
     pass
+
+@admin.register(TipoToken)
+class TipoTokenAdmin(BaseAdmin):
+    pass
+
+@admin.register(TokenUsuario)
+class TokenUsuarioAdmin(BaseAdmin):
+    pass

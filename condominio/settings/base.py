@@ -3,6 +3,8 @@ import environ
 from pathlib import Path
 from datetime import timedelta
 
+
+
 """
 Django settings for condominio project.
 
@@ -105,6 +107,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {
+            'min_length': 6,  # 
+        }
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',

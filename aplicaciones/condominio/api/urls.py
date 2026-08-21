@@ -41,10 +41,14 @@ urlpatterns = [
     path('api/propiedad/registar', views.PropiedadCreateAPIView.as_view()),
     path('api/propiedad/actualizar/<pk>', views.PropiedadUpdateAPIView.as_view()),
     path('api/propiedad/registrar-propietario/', views.RegistrarPropietarioView.as_view(), name='registrar-propietario-propiedad'),
+    path('api/propiedad/registrar-propietario-token/', views.RegistrarPropietarioConTokenView.as_view(), name='registrar-propietario-propiedad-token'),
 
     path('api/usuario/login/', views.LoginView.as_view(), name='login'),
-    path( 'api/usuario/cambiar-password/', views.CambiarPasswordView.as_view(), name='cambiar-password'),
+    path('api/usuario/cambiar-password/', views.CambiarPasswordView.as_view(), name='cambiar-password'),
     path('api/usuario/registrar/', views.RegistrarUsuarioView.as_view(), name='registrar'),
+    path('api/usuario/recuperar-password/', views.GenerarTokenView.as_view(), name='recuperar-password'),
+    path('api/usuario/establecer-password/', views.EstablecerPasswordView.as_view(), name='establecer-password'),
+    path('api/usuario/conserje-password/', views.RegistrarConserjeConTokenView.as_view(), name='conserje-password'),
     
     
 ]

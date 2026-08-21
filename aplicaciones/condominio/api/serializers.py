@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from django.utils import timezone
 from django.db.models import Q
-
+from .constants import PASSWORD_MIN_LENGTH
 
 from ..models import *
 
@@ -125,39 +125,25 @@ class RegistrarCondominioSerializer(serializers.Serializer):
     nombre_completo = serializers.CharField(max_length=150)
     password = serializers.CharField(
         write_only=True,
-        min_length=8
+        min_length=PASSWORD_MIN_LENGTH
     )
 
 # 2. (Opcional) Serializer para la RESPUESTA (Response)
 class RegistrarCondominioResponseSerializer(serializers.Serializer):
-    condominio_id = serializers.IntegerField(
-        source="condominio.id"
-    )
-    nombre = serializers.CharField(
-        source="condominio.nombre"
-    )
-    nombre_corto = serializers.CharField(
-        source="condominio.nombre_corto"
-    )
-    usuario_id = serializers.IntegerField(
-        source="usuario.id"
-    )
-    nombre_completo = serializers.CharField(
-        source="usuario.nombre_completo"
-    )
-    email_whatsapp = serializers.CharField(
-        source="usuario.email_whatsapp"
-    )
-    rol = serializers.CharField(
-        source="usuario_rol.rol.clave"
-    ) 
+    condominio_id = serializers.IntegerField(        source="condominio.id"    )
+    nombre = serializers.CharField(        source="condominio.nombre"    )
+    nombre_corto = serializers.CharField(        source="condominio.nombre_corto"    )
+    usuario_id = serializers.IntegerField(        source="usuario.id"    )
+    nombre_completo = serializers.CharField(        source="usuario.nombre_completo"    )
+    email_whatsapp = serializers.CharField(        source="usuario.email_whatsapp"    )    
+    rol = serializers.CharField(        source="usuario_rol.rol.clave"    ) 
 
 class UsuarioRolSerializer(serializers.Serializer):
     class Meta:
         model = UsuarioRol
         fields = (
             '__all__'
-        )
+    )
 
 class PropiedadSerializer(CreoModificoSerializer):
     class Meta(CreoModificoSerializer.Meta):
@@ -173,7 +159,7 @@ class CuotaCobradaSerializer(serializers.ModelSerializer):
         model = CuotaCobrada
         fields = (
             '__all__'
-        )
+    )
 
 class EstadoCondominioSerializer(serializers.ModelSerializer):
     class Meta:
@@ -196,7 +182,7 @@ class CambiarPasswordSerializer(serializers.Serializer):
 
     password_nueva = serializers.CharField(
         write_only=True,
-        min_length=8
+        min_length=PASSWORD_MIN_LENGTH
     )        
 
 class CambiarPasswordResponseSerializer(serializers.Serializer):
@@ -210,7 +196,7 @@ class RegistrarPropietarioSerializer(serializers.Serializer):
     email_whatsapp = serializers.CharField(max_length=50)
     nombre_completo = serializers.CharField(max_length=150)
 
-# 3 (Opcional) Serializer para la RESPUESTA del resgistro propiedad
+#  (Opcional) Serializer para la RESPUESTA del resgistro propiedad
 class RegistrarPropietarioResponseSerializer(serializers.Serializer):
     condominio_id = serializers.IntegerField( source="propiedad.condominio.id"    )
     nombre = serializers.CharField( source="propiedad.nombre"    )    
@@ -218,4 +204,68 @@ class RegistrarPropietarioResponseSerializer(serializers.Serializer):
     nombre_completo = serializers.CharField( source="usuario.nombre_completo"    )
     email_whatsapp = serializers.CharField( source="usuario.email_whatsapp"    )
     rol = serializers.CharField( source="usuario_rol.rol.clave"    )       
+
+class TokenUsuarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TokenUsuario
+        fields = (
+            '__all__'
+    )    
+
+class TipoTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoToken
+        fields = (
+            '__all__'
+    )         
+
+class GenerarTokenSerializer(serializers.Serializer):
+    email_whatsapp = serializers.CharField(max_length=50)
+    tipo_token = serializers.CharField(max_length=50)
+
+class GenerarTokenResponseSerializer(serializers.Serializer):
+    token = serializers.CharField()
+                    
+class EstablecerPasswordSerializer(serializers.Serializer):
+    token = serializers.IntegerField()
+    nuevo_password = serializers.CharField(
+        write_only=True,
+        max_length=50,
+        min_length=PASSWORD_MIN_LENGTH)
+
+class EstablecerPasswordResponseSerializer(serializers.Serializer):    
+    mensaje = serializers.CharField(max_length=50)    
+                  
+
+# # Serializer de entrada para registrar un propietario y su propiedad.
+class RegistrarPropietarioTokenSerializer(serializers.Serializer):
+    nombre_propiedad = serializers.CharField(max_length=50)    
+    direccion = serializers.CharField(max_length=100)    
+
+    email_whatsapp = serializers.CharField(max_length=50)
+    nombre_completo = serializers.CharField(max_length=150)
+
+#  Serializer para la RESPUESTA del resgistro propiedad, propietario y token
+class RegistrarPropietarioTokenResponseSerializer(serializers.Serializer):
+    condominio_id = serializers.IntegerField( source="propiedad.condominio.id"    )
+    nombre = serializers.CharField( source="propiedad.nombre"    )    
+    usuario_id = serializers.IntegerField( source="usuario.id"    )
+    nombre_completo = serializers.CharField( source="usuario.nombre_completo"    )
+    email_whatsapp = serializers.CharField( source="usuario.email_whatsapp"    )
+    rol = serializers.CharField( source="usuario_rol.rol.clave"    )    
+    token_temporal = serializers.IntegerField() 
+
+# # Serializer de entrada para registrar un conserje.
+class RegistrarConserjeTokenSerializer(serializers.Serializer):    
+    email_whatsapp = serializers.CharField(max_length=50)
+    nombre_completo = serializers.CharField(max_length=150)
+
+# # Serializer de respuesta para registrar un conserje.
+class RegistrarConserjeTokenResponseSerializer(serializers.Serializer): 
+    condominio_id = serializers.IntegerField( source="usuario.condominio.id"    )   
+    usuario_id = serializers.IntegerField( source="usuario.id"    )
+    nombre_completo = serializers.CharField( source="usuario.nombre_completo"    )
+    email_whatsapp = serializers.CharField( source="usuario.email_whatsapp"    )
+    rol = serializers.CharField( source="usuario_rol.rol.clave"    )    
+    token_temporal = serializers.IntegerField() 
     

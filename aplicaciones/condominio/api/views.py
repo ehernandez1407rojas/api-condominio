@@ -14,11 +14,18 @@ from .serializers import (
     RegistrarCondominioResponseSerializer,
     CambiarPasswordSerializer,
     PropiedadSerializer, CambiarPasswordResponseSerializer, CondominioSerializer, PaginationSerializer, CuotaCobradaSerializer,
-    RegistrarPropietarioResponseSerializer, RegistrarPropietarioSerializer
+    RegistrarPropietarioResponseSerializer, RegistrarPropietarioSerializer,
+    GenerarTokenSerializer, GenerarTokenResponseSerializer,
+    EstablecerPasswordSerializer, EstablecerPasswordResponseSerializer,
+    RegistrarPropietarioTokenSerializer, RegistrarPropietarioTokenResponseSerializer,
+    RegistrarConserjeTokenSerializer, RegistrarConserjeTokenResponseSerializer
 
 )
 
-from .use_cases import (RegistrarCondominioUseCase, CambiarPasswordUseCase, RegistrarPropietarioUseCase)
+from .use_cases import (RegistrarCondominioUseCase, CambiarPasswordUseCase, RegistrarPropietarioUseCase
+                        , GenerarTokenUseCase, EstablecerPasswordConTokenUseCase, RegistrarPropietarioConTokenUseCase
+                        , RegistrarConserjeConTokenUseCase)
+
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from ..models import *
@@ -207,7 +214,6 @@ class PropiedadCreateAPIView(CreateAPIView):
 class PropiedadUpdateAPIView(UpdateAPIView):
     serializer_class = PropiedadSerializer
     queryset = Propiedad.objects.all()
-
       
 
 @extend_schema(
@@ -262,6 +268,192 @@ class RegistrarPropietarioView(APIView):
 
         # 3. Serializar la respuesta.
         response_serializer = RegistrarPropietarioResponseSerializer(
+            resultado
+        )
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+
+class GenerarTokenView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=GenerarTokenSerializer,
+        responses={
+        200: GenerarTokenResponseSerializer
+            },
+        summary="Genera token temporal",
+        description=(
+            "Genera token temporal "
+            ),
+        )
+
+    def post(self, request):
+
+        serializer = GenerarTokenSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            resultado = GenerarTokenUseCase.execute(
+                administrador=request.user,
+                **serializer.validated_data
+            )
+
+        except ValidationError as e:
+            return Response(
+                {
+                    'detail': e.messages
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 3. Serializar la respuesta.
+        response_serializer = GenerarTokenResponseSerializer(
+            resultado
+        )
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_200_OK
+        )
+
+class EstablecerPasswordView(APIView):
+    
+    @extend_schema(
+        request=EstablecerPasswordSerializer,
+        responses={
+        200: EstablecerPasswordResponseSerializer
+            },
+        summary="Establece password via token temporal",
+        description=(
+            "Establece password "
+            ),
+        )
+
+    def post(self, request):
+
+        serializer = EstablecerPasswordSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            resultado = EstablecerPasswordConTokenUseCase.execute(                
+                **serializer.validated_data
+            )
+
+        except ValidationError as e:
+            return Response(
+                {
+                    'detail': e.messages
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 3. Serializar la respuesta.
+        response_serializer = EstablecerPasswordResponseSerializer(
+            resultado
+        )
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_200_OK
+        )        
+
+class RegistrarPropietarioConTokenView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=RegistrarPropietarioTokenSerializer,
+        responses={201: RegistrarPropietarioTokenResponseSerializer},
+        summary="Registrar propietario y propiedad y token temporal",
+        description=(
+            "Registra una propiedad junto con su usuario propietario, y token temporal "
+            "con rol PROPIETARIO, dentro de una única transacción."
+        ),
+    )
+    def post(self, request, *args, **kwargs):
+
+        # 1. Validar los datos recibidos.
+        serializer = RegistrarPropietarioTokenSerializer(
+            data=request.data
+        )
+        serializer.is_valid(raise_exception=True)
+
+        # 2. Ejecutar el caso de uso.
+        
+        try:
+            resultado = RegistrarPropietarioConTokenUseCase.execute(
+                administrador=request.user,
+                **serializer.validated_data
+            )
+
+        except ValidationError as e:
+            return Response(
+                {
+                    'detail': e.messages
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 3. Serializar la respuesta.
+        response_serializer = RegistrarPropietarioTokenResponseSerializer(
+            resultado
+        )
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+
+
+class RegistrarConserjeConTokenView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=RegistrarConserjeTokenSerializer,
+        responses={201: RegistrarConserjeTokenResponseSerializer},
+        summary="Registrar conserje y token temporal",
+        description=(
+            "Registra un usuario conserje y token temporal "
+            "con rol CONSERJE, dentro de una única transacción."
+        ),
+    )
+    def post(self, request, *args, **kwargs):
+
+        # 1. Validar los datos recibidos.
+        serializer = RegistrarConserjeTokenSerializer(
+            data=request.data
+        )
+        serializer.is_valid(raise_exception=True)
+
+        # 2. Ejecutar el caso de uso.
+        
+        try:
+            resultado = RegistrarConserjeConTokenUseCase.execute(
+                administrador=request.user,
+                **serializer.validated_data
+            )
+
+        except ValidationError as e:
+            return Response(
+                {
+                    'detail': e.messages
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 3. Serializar la respuesta.
+        response_serializer = RegistrarConserjeTokenResponseSerializer(
             resultado
         )
 

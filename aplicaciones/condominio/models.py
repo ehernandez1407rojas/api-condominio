@@ -378,4 +378,34 @@ class ComiteComposicion (CreoModificoCondominioAbstract):
     activo = models.BooleanField(
             default=True, 
             help_text="Indica si el ese miembro del comite esta activo o no"
-        ) 
+    ) 
+
+class TipoToken(models.Model):
+    clave = models.CharField(max_length=50, unique=True)
+    descripcion = models.CharField(max_length=100)
+    orden = models.DecimalField(max_digits=5, decimal_places=2)
+    duracion_minutos = models.PositiveIntegerField(
+        help_text="Duración del token en minutos"
+    )
+
+    class Meta:
+        verbose_name = "Tipo Token"
+
+    def __str__(self):
+        return f"{self.clave} {self.descripcion}"
+
+class TokenUsuario(CreoModificoCondominioAbstract):
+    usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT)
+    tipo = models.ForeignKey(TipoToken, on_delete=models.PROTECT)
+    token_hash = models.CharField( max_length=64, help_text="Hash SHA-256 del token temporal"    )
+    fecha_generacion = models.DateTimeField( help_text="Fecha en la que se generó el token temporal para el usuario"    )
+    fecha_expiracion = models.DateTimeField( help_text="Fecha en la que expira el token temporal para el usuario"    )
+    fecha_uso = models.DateTimeField( blank=True, null=True, help_text="Fecha y hora en la que se usó el token temporal"    )
+    fecha_cancelacion = models.DateTimeField(
+        blank=True,
+        null=True,
+        help_text="Fecha y hora en la que se canceló el token temporal"
+    )
+
+    class Meta:
+        verbose_name = "Token Usuario"
