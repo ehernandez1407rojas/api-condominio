@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 import os
+from django.db.models import Q
 
 ## from .api.managers import *
 from django.conf import settings
@@ -15,8 +16,7 @@ from .api.managers import (
     PropiedadManager,
 )
 
-# class CondominioManager(models.Manager):
-    
+# class CondominioManager(models.Manager):    
 #     def listar_condominios_nombre(self, nombre):
 #         return self.filter(nombre = nombre)
     
@@ -66,20 +66,51 @@ class Rol(models.Model):
     clave = models.CharField(max_length=50, unique=True)  # Ej: "ADMINISTRADOR", "PROPIETARIO", "CONSERJE"
     descripcion = models.CharField(max_length=100)  # Ej: "ADMINISTRADOR represenatnte del condominio", "PROPIETARIO dueño de la casa  o departamento", "CONCERJE"
     orden = models.DecimalField(max_digits=5, decimal_places=2)  # Para ordenar en listas    
-
     class Meta:
         verbose_name = "Rol"
         
     def __str__(self):
-        return f'{self.clave} {self.descripcion}'  
+        return f'{self.clave} '  
+
+
+class SituacionProveedor(models.Model):    
+    clave = models.CharField(max_length=50)  # Ej: "RECOMENDABLE", "VETADO", "PENDIENTE"
+    descripcion = models.CharField(max_length=100)  # Ej: "RECOMENDABLE", "VETADO", "PENDIENTE"
+    orden = models.DecimalField(max_digits=5, decimal_places=2)  # Para ordenar en listas
+
+    class Meta:
+        verbose_name = "Situacion Proveedor"
         
-# Modelo con el objeto de la aplicacion
+    def __str__(self):
+        return f'{self.clave} '  
+
+class TipoGasto(models.Model):    
+    clave = models.CharField(max_length=50)  # Ej: "NORMAL", "EXTRAORDINARIO", "OTRO"
+    descripcion = models.CharField(max_length=100)  # Ej: "NORMAL", "EXTRAORDINARIO", "OTRO"
+    orden = models.DecimalField(max_digits=5, decimal_places=2)  # Para ordenar en listas
+    
+    class Meta:        
+        verbose_name = 'Tipo Gasto'
+        verbose_name_plural = 'Tipos de Gastos' 
+        
+    def __str__(self):
+        return f' {self.clave}'  
+     
+                
+# ModeloS para atender  el objeto de la aplicacion
 class Condominio(CreoModificoAbstract):
     nombre = models.CharField(max_length=50, unique=True,help_text="Máximo 50 caracteres" )
     nombre_corto = models.CharField(max_length=20, unique=True, default="", help_text="Máximo 20 caracteres")
     direccion = models.CharField(max_length=100, unique=True)
-    inicio_servicio = models.DateField(blank=False, null=False)     
-    estado_condominio =  models.ForeignKey(EstadoCondominio, on_delete=models.PROTECT, default=1)      
+    inicio_servicio = models.DateField(blank=False, null=False)
+
+    # Función para obtener el estado activo
+    def get_estado_activo():
+        from .models import EstadoCondominio
+        # Esto lanzará EstadoCondominio.DoesNotExist si no existe
+        return EstadoCondominio.objects.get(clave="ACTIVO").pk
+         
+    estado_condominio =  models.ForeignKey(EstadoCondominio, on_delete=models.PROTECT, default=get_estado_activo)      
     
     objects = CondominioManager()    
     
@@ -106,38 +137,9 @@ class CatalogoBase(CreoModificoCondominioAbstract):
     class Meta:
         abstract = True  # ¡No crea tabla en la BD!
 
-# --- Catálogos Concretos (Heredan de CatalogoBase) ---
-class TipoCuota(CatalogoBase):
-    class Meta:
-        verbose_name = "Tipo de Cuota"
-        
-    def __str__(self):
-        return f'{self.clave} {self.descripcion}'  
-        
-class TipoFrecuencia(CatalogoBase):
-    class Meta:
-        verbose_name = "Tipo Frecuencia de Pago"
-        
-    def __str__(self):
-        return f'{self.clave} {self.descripcion}'  
-        
-class TipoGasto(CatalogoBase):    
-    quien_autoriza = models.CharField(max_length=50, blank=True, null=True)
-    
-    class Meta:        
-        verbose_name = 'Tipo Gasto'
-        verbose_name_plural = 'Tipos de Gastos' 
-        
-    def __str__(self):
-        return f'{self.condominio.nombre} {self.clave}'  
-                
-class TipoPeriodoCuota(CatalogoBase):
-    class Meta:
-        verbose_name = "Tipo Periodo de Cuota"
-    
-    def __str__(self):
-        return f'{self.clave} {self.descripcion}'  
-
+# --- Catálogos Concretos  
+         
+                   
 # ---tabla Usuario----
 
 class Usuario(AbstractUser, CreoModificoCondominioAbstract):    
@@ -215,33 +217,11 @@ class Usuario(AbstractUser, CreoModificoCondominioAbstract):
 
 # la relacion usuario con los diferentes roles que puede tener por condominio
 class UsuarioRol(CreoModificoAbstract):
-    condominio = models.ForeignKey(
-        Condominio,
-        on_delete=models.CASCADE,
-        related_name="usuarios"
-    )
-
-    usuario = models.ForeignKey(
-        Usuario,
-        on_delete=models.CASCADE,
-        related_name="roles"
-    )
-
-    rol = models.ForeignKey(
-        Rol,
-        on_delete=models.CASCADE,
-        related_name="usuarios"
-    )
-
-    fecha_fin = models.DateField(
-        null=True, 
-        blank=True, 
-        help_text="Fecha en la que concluye la vigencia del rol (Null indica vigencia actual)"
-    )
-    activo = models.BooleanField(
-        default=True, 
-        help_text="Indica si el rol está vigente en la sesión actual"
-    )
+    condominio = models.ForeignKey( Condominio, on_delete=models.CASCADE, related_name="usuarios" )
+    usuario = models.ForeignKey( Usuario, on_delete=models.CASCADE, related_name="roles" )
+    rol = models.ForeignKey( Rol, on_delete=models.CASCADE, related_name="usuarios" )
+    fecha_fin = models.DateField( null=True, blank=True, help_text="Fecha en la que concluye la vigencia del rol (Null indica vigencia actual)" )
+    activo = models.BooleanField( default=True, help_text="Indica si el rol está vigente en la sesión actual" )
 
     def clean(self):
         super().clean()
@@ -275,24 +255,7 @@ class UsuarioRol(CreoModificoAbstract):
             )
         ]   
 
-# --- tablas transaccionales ---        
-        
-class Cuota(CreoModificoCondominioAbstract):
-    
-    nombre = models.CharField(max_length=30)
-    tipo_cuota = models.ForeignKey(TipoCuota, on_delete=models.PROTECT)
-    nombre = models.CharField(max_length=30)
-    importe = models.DecimalField(decimal_places=2, max_digits=12)
-    frecuencia = models.ForeignKey(TipoFrecuencia, on_delete=models.PROTECT)
-    aplica_desde = models.DateField(blank=False, null=False)
-    aplica_hasta = models.DateField(blank=True, null=True)
-        
-    class Meta:
-        verbose_name = 'Cuota'
-        verbose_name_plural = 'Cuotas' 
-        
-    def __str__(self):
-        return f'{self.condominio.nombre} {self.nombre}'       
+# --- tablas transaccionales ---                  
         
 class Propiedad(CreoModificoCondominioAbstract):    
     nombre = models.CharField(max_length=50)
@@ -311,75 +274,8 @@ class Propiedad(CreoModificoCondominioAbstract):
     def __str__(self):
         return f'{self.nombre} {self.direccion} {self.propietario.nombre_completo}' 
 
-# la relacioin del Usuario miembro con su propiedad casa o departamento
+# la relacion del Usuario miembro con su propiedad casa o departamento
     
-        
-class CuotaCobrada(CreoModificoCondominioAbstract):    
-    propiedad = models.ForeignKey(Propiedad, on_delete=models.PROTECT)
-    importe_cobrado = models.DecimalField(max_digits=12, decimal_places=2)
-    tipo_cuota = models.ForeignKey(TipoCuota, on_delete=models.PROTECT)
-    periodo_cuota = models.ForeignKey(TipoPeriodoCuota, on_delete=models.PROTECT)
-    fecha = models.DateField(blank=False, null=False)
-    comprobante = models.CharField(max_length=200)
-    cuota_comprobante = models.ImageField(upload_to=ruta_comprobante_condominio, blank=True, null=True)
-                   
-    class Meta:
-        verbose_name = 'Cuota Cobrada'
-        verbose_name_plural = 'Cuotas Cobradas' 
-
-    def __str__(self):
-        return f'{self.id}  {self.propiedad} {self.periodo_cuota} {self.fecha} {self.importe_cobrado}'         
-                
-class Proveedor(CreoModificoCondominioAbstract):    
-    nombre = models.CharField(max_length=50)
-    direccion = models.CharField(max_length=100)
-    titular = models.CharField(max_length=50)
-    celular = models.CharField(max_length=30, unique=True)
-    correo = models.CharField(max_length=30, unique=True)
-    comentarios = models.CharField(max_length=500)
-    aplica_desde = models.DateField(blank=False, null=False)
-    aplica_hasta = models.DateField(blank=True, null=True)
-                   
-    class Meta:
-        verbose_name = 'Proveedor'
-        verbose_name_plural = 'Proveedores' 
-        
-    def __str__(self):
-        return f'{self.nombre} {self.direccion} '
-                        
-class GastoPagado(CreoModificoCondominioAbstract):    
-    proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT)
-    importe_pagado = models.DecimalField(max_digits=12, decimal_places=2)
-    gasto = models.ForeignKey(TipoGasto, on_delete=models.PROTECT)    
-    fecha = models.DateField(blank=False, null=False)
-    comprobante = models.CharField(max_length=100)
-    quien_autorizo = models.DateField(blank=True, null=True)
-    cuando_autorizo = models.DateField(blank=True, null=True)
-    gasto_comprobante = models.ImageField(upload_to=ruta_comprobante_condominio, blank=True, null=True)
-                   
-    class Meta:
-        verbose_name = 'Gasto Pagado'
-        verbose_name_plural = 'Gastos Pagados'   
-        
-    def __str__(self):
-        return f'{self.id} {self.fecha} {self.proveedor} {self.gasto} {self.importe_pagado}'      
-
-class Comite (CreoModificoCondominioAbstract, AplicaDesdeHastaAbstract):
-    nombre = models.CharField(max_length=50, help_text="Nombre que identifica el comite")
-    activo = models.BooleanField(
-            default=True, 
-            help_text="Indica si el rol está vigente en la sesión actual"
-        ) 
-
-class ComiteComposicion (CreoModificoCondominioAbstract):
-    comite = models.ForeignKey(Comite, on_delete=models.PROTECT)
-    usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT)
-    funcion_integrante = models.CharField(max_length=50, help_text="Indicacion del rol o funcion del miembro del comite")
-    activo = models.BooleanField(
-            default=True, 
-            help_text="Indica si el ese miembro del comite esta activo o no"
-    ) 
-
 class TipoToken(models.Model):
     clave = models.CharField(max_length=50, unique=True)
     descripcion = models.CharField(max_length=100)
@@ -409,3 +305,185 @@ class TokenUsuario(CreoModificoCondominioAbstract):
 
     class Meta:
         verbose_name = "Token Usuario"
+
+# para el area de Cuotas
+# catalogo general para todos los condominios
+
+class FrecuenciaCuota(models.Model):    
+    clave = models.CharField(max_length=50, help_text=" solo pueden ser MENSUAL o UNICA")   
+    descripcion = models.CharField(max_length=100, help_text=" descripcion para ser MENSUAL o UNICA")
+    orden = models.DecimalField(max_digits=5, decimal_places=2, help_text=" Para ordenar en listas ")   
+    unidad_tiempo = models.CharField(max_length=20 , help_text=" Para cobrar cada MES o en un DIA")    
+
+    class Meta:
+        verbose_name = "Frecuencia de Cuota"
+        
+    def __str__(self):
+        return f'{self.clave} '  
+    
+class TipoCuota(models.Model):    
+    clave = models.CharField(max_length=50, help_text=" solo pueden ser ORDINARIA o EXTRAORDINARIA")  
+    descripcion = models.CharField(max_length=100, help_text=" descripcion para ORDINARIA o EXTRAORDINARIA") 
+    orden = models.DecimalField(max_digits=5, decimal_places=2)  # Para ordenar en listas    
+    frecuencia_cuota = models.ForeignKey(FrecuenciaCuota, on_delete=models.PROTECT, help_text="Solo pueden ser mensual o unica y cobrarse cada mes o en un dia")
+    
+
+    class Meta:
+        verbose_name = "Tipo Cuota"
+        
+    def __str__(self):
+        return f'{self.clave} '    
+
+class EstadoCuotaExigible(models.TextChoices):
+    EXIGIBLE = 'E', 'Exigible'
+    PAGADA = 'P', 'Pagada'
+    CANCELADA = 'C', 'Cancelada'    
+    
+# tablas transaccionales
+
+class Cuota(CreoModificoCondominioAbstract):        
+    tipo_cuota = models.ForeignKey(TipoCuota, on_delete=models.PROTECT, help_text="Solo pueden ser ordinaria o extraordinaria")
+    nombre = models.CharField(max_length=100, help_text="En un nombre que se le puede dar a esa cuota")
+    importe = models.DecimalField(decimal_places=2, max_digits=12,  help_text="Se debe indicar un importe para cualquiera de las cuotas ")
+    activo = models.BooleanField( default=True, help_text="Indica la cuota está activo o no" )
+    aplica_desde = models.DateField(help_text="Fecha inicial de exigibilidad de la cuota puede se menor,  mayor o igual a la fecha del sistema")
+    aplica_hasta = models.DateField( help_text="Fecha final de exigibilidad de la cuota, debe ser mayor a la fecha inicial y puede se menor,  mayor o igual a la fecha del sistema")
+    comentario_cancelacion = models.CharField(max_length=100, blank=True, null=True, help_text="Comentario con el motivo de la cancelacion")
+       
+    class Meta:
+        verbose_name = 'Cuota'
+        verbose_name_plural = 'Cuotas' 
+        constraints = [
+            models.UniqueConstraint(
+                fields=['condominio', 'tipo_cuota'],
+                condition=Q(activo=True),
+                name='unique_cuota_activa_por_condominio_y_tipo'
+            )
+        ]
+        
+    def __str__(self):
+        return f'{self.condominio.nombre} {self.nombre}'    
+
+
+class CuotaExigible (CreoModificoCondominioAbstract):
+    propiedad = models.ForeignKey(Propiedad, on_delete=models.PROTECT, help_text="Propiedad que debe  pagar la cuota")
+    cuota = models.ForeignKey(Cuota, on_delete=models.PROTECT, help_text="El nombre de la cuota que lleva las condiciones de la cuota")
+    fecha_exigibilidad = models.DateField(help_text="Fecha en la que sera exigible la cuota y se debera de pagar en caso de mensual sera al inicio de mes")
+    importe_cuota = models.DecimalField(max_digits=12, decimal_places=2, help_text="Importe a pagar de la cuota")
+    estado = models.CharField( max_length=1, choices=EstadoCuotaExigible.choices, default=EstadoCuotaExigible.EXIGIBLE, help_text="Estado de la exigibilidad de la cuota")
+
+
+#         
+class CuotaCobrada(CreoModificoCondominioAbstract):    
+    propiedad = models.ForeignKey(Propiedad, on_delete=models.PROTECT, help_text="Propiedad que paga la cuota")
+    cuota_exigible = models.ForeignKey(CuotaExigible, on_delete=models.PROTECT, help_text="Cuota que se paga")
+    importe_exigible = models.DecimalField(max_digits=12, decimal_places=2, help_text="Importe exigible de la cuota")   
+    importe_cobrado = models.DecimalField(max_digits=12, decimal_places=2, help_text="Importe cobrado de esa cuota")    
+    quien_recibe = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='%(class)s_recibio', help_text="La persona que recibe la cuota")    
+    fecha_recepcion = models.DateTimeField(auto_now_add=True, help_text="Sera la fecha y hora de cuando se recibe la cuota no se puede cambiar")
+    comprobante = models.CharField(max_length=100, help_text="Es una captura libre de como se comprueba el importe")
+    cuota_comprobante = models.ImageField(upload_to=ruta_comprobante_condominio, blank=True, null=True, help_text="archivo en formato pdf o jpg solamente")
+    quien_valido = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='%(class)s_valido', blank=True, null=True, help_text="Sera el administrador")    
+    cuando_valido = models.DateTimeField(blank=True, null=True, help_text="Sera la fecha y hora cuando el administrador recibe y valida las cuotas")
+    saldo = models.DecimalField(max_digits=12, decimal_places=2, help_text="Diferencia entre el monto de la cuota definido y lo pagado puede ser a favor o en contra se pasa al siguiente pago", default=0)
+    esta_validada = models.BooleanField(default=False)
+    comentario_validacion=models.CharField(max_length=100, blank=True, null=True, help_text="Comentario del administrador al validar el cobro")
+
+    class Meta:
+        verbose_name = 'Cuota Cobrada'
+        verbose_name_plural = 'Cuotas Cobradas' 
+
+    def __str__(self):
+        return f'{self.id}  {self.propiedad}  {self.fecha_recepcion} {self.importe_cobrado}'         
+
+
+# para el area de gastos
+"""                 
+class Proveedor(CreoModificoCondominioAbstract, AplicaDesdeHastaAbstract):    
+    nombre = models.CharField(max_length=50, help_text="Nombre del proveedor del bien o servicio")
+    direccion = models.CharField(max_length=100, help_text="Direccion del proveedor del bien o servicio")
+    especialidad = models.CharField(max_length=100 , help_text="Oficio o especialicidad del proveedor del bien o servicio")
+    celular = models.CharField(max_length=30, unique=True, blank=True, null=True, help_text="Celular del proveedor del bien o servicio" )
+    correo = models.CharField(max_length=30, unique=True, blank=True, null=True, help_text="Correo electronico del proveedor del bien o servicio")     
+    situacion =  models.ForeignKey(SituacionProveedor, on_delete=models.PROTECT) 
+                   
+    class Meta:
+        verbose_name = 'Proveedor'
+        verbose_name_plural = 'Proveedores' 
+        
+    def __str__(self):
+        return f'{self.nombre} {self.direccion} '
+
+class ProveedorComentario(CreoModificoCondominioAbstract): 
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT) 
+    comentarios = models.CharField(max_length=200) 
+
+    class Meta:
+        verbose_name = 'Comentario Proveedor'
+
+    def __str__(self):
+            return f'{self.proveedor.nombre} {self.comentario} '
+                        
+class GastoPagado(CreoModificoCondominioAbstract):    
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT)
+    importe_pagado = models.DecimalField(max_digits=12, decimal_places=2)
+    gasto = models.ForeignKey(TipoGasto, on_delete=models.PROTECT)    
+    fecha = models.DateField(blank=False, null=False)
+    comprobante = models.CharField(max_length=100)
+    quien_autorizo = models.DateField(blank=True, null=True)
+    cuando_autorizo = models.DateField(blank=True, null=True)
+    gasto_comprobante = models.ImageField(upload_to=ruta_comprobante_condominio, blank=True, null=True)
+                   
+    class Meta:
+        verbose_name = 'Gasto Pagado'
+        verbose_name_plural = 'Gastos Pagados'   
+        
+    def __str__(self):
+        return f'{self.id} {self.fecha} {self.proveedor} {self.gasto} {self.importe_pagado}'      
+
+ """
+
+
+
+
+"""
+class Comite (CreoModificoCondominioAbstract, AplicaDesdeHastaAbstract):
+    nombre = models.CharField(max_length=50, help_text="Nombre que identifica el comite")
+    activo = models.BooleanField(
+            default=True, 
+            help_text="Indica si el rol está vigente en la sesión actual"
+        ) 
+
+class ComiteIntegrante (CreoModificoCondominioAbstract):
+    comite = models.ForeignKey(Comite, on_delete=models.PROTECT)
+    usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT)
+    funcion_integrante = models.CharField(max_length=50, help_text="Indicacion del rol o funcion del miembro del comite")
+    activo = models.BooleanField(
+            default=True, 
+            help_text="Indica si el ese miembro del comite esta activo o no"
+    ) 
+
+class ComiteConvocatoria (CreoModificoCondominioAbstract):
+    comite = models.ForeignKey(Comite, on_delete=models.PROTECT)
+    nombre = models.CharField(max_length=50, help_text="Nombre que identifica la convocatgoria")
+    descripcion = models.CharField(max_length=100, help_text="Descripcion de la convocatoria motivo ")
+    fecha_celebracion = models.DateTimeField(help_text="Fecha y hora en la que se realizará el comite mayor a la fecha de sistema")
+
+class ActividadOrdenDia(models.Model):
+    clave = models.CharField(max_length=50)  # Ej: "APROBAR", "REVISAR", "ANALIZAR"
+    descripcion = models.CharField(max_length=100)  # Ej: "APROBAR", "REVISAR", "ANALIZAR"
+    accion_requerida = models.CharField(max_length=50)  # Ej: "APROBAR", "REVISAR", "ANALIZAR"
+    orden = models.DecimalField(max_digits=5, decimal_places=2)  # Para ordenar en listas
+    requiere_resultado = models.BooleanField(null=True, blank=True, default=False)
+    requiere_votacion = models.BooleanField(null=True, blank=True, default=False)
+    class Meta:
+        verbose_name = "Estado Condominio"
+        
+    def __str__(self):
+        return f'{self.clave} {self.descripcion}'      
+
+class ConvocatoriaOrdenDia(CreoModificoCondominioAbstract):
+    comite_convocatoria = models.ForeignKey(ComiteConvocatoria, on_delete=models.PROTECT)
+    actividad_orden_dia = models.ForeignKey(ActividadOrdenDia, on_delete=models.PROTECT)
+
+ """   

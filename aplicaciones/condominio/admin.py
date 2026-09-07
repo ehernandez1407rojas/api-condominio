@@ -70,29 +70,18 @@ class UsuarioAdmin(BaseAdmin):
         super().save_model(request, obj, form, change)
         
     
-@admin.register(Proveedor)
-class ProveedorAdmin(BaseAdmin):
-    pass
+
 
 @admin.register(Condominio)
 class CondominioAdmin(BaseAdmin):
     pass
 
-@admin.register(Cuota)
-class CuotaAdmin(BaseAdmin):
-    pass
+
 
 @admin.register(Propiedad)
 class PropiedadAdmin(BaseAdmin):
     pass
 
-@admin.register(CuotaCobrada)
-class CuotaCobradaAdmin(BaseAdmin):
-    pass
-
-@admin.register(GastoPagado)
-class GastoPagadoAdmin(BaseAdmin):
-    pass
 
 @admin.register(TipoGasto)
 class TipoGastoAdmin(BaseAdmin):
@@ -102,13 +91,7 @@ class TipoGastoAdmin(BaseAdmin):
 class TipoCuotaAdmin(BaseAdmin):
     pass
 
-@admin.register(TipoFrecuencia)
-class TipoFrecuenciaAdmin(BaseAdmin):
-    pass
 
-@admin.register(TipoPeriodoCuota)
-class TipoPeriodoCuotaAdmin(BaseAdmin):
-    pass
 
 @admin.register(Rol)
 class RolAdmin(BaseAdmin):
@@ -125,3 +108,27 @@ class TipoTokenAdmin(BaseAdmin):
 @admin.register(TokenUsuario)
 class TokenUsuarioAdmin(BaseAdmin):
     pass
+
+@admin.register(Cuota)
+class CuotaAdmin(BaseAdmin):
+    pass
+
+@admin.register(CuotaExigible)
+class CuotaAdmin(BaseAdmin):
+    pass
+
+
+@admin.register(CuotaCobrada)
+class CuotaCobradaAdmin(BaseAdmin):
+    pass
+
+
+
+""" 
+@admin.register(Proveedor)
+class ProveedorAdmin(BaseAdmin):
+    pass
+
+@admin.register(GastoPagado)
+class GastoPagadoAdmin(BaseAdmin):
+    pass """

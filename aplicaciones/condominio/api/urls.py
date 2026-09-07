@@ -32,10 +32,10 @@ urlpatterns = [
     path('api/propiedad/filtrar', views.PropiedadPorPropietarioYCondominio.as_view()),
     path('api/propiedad/detalle/<pk>/', views.PropiedadDetalle.as_view()),
     
-    path('api/cuota_cobrada/registrar/', views.CuotaCobradaGuardar.as_view()),
+   ##  path('api/cuota_cobrada/registrar/', views.CuotaCobradaGuardar.as_view(), name='cuota-cobrada-view'),
     
     path('api/condominio/registrar', views.CondominioCreateAPIView.as_view()),
-    path( 'api/condominio/registrar-administrador/', views.RegistrarCondominioView.as_view(), name='registrar-condominio-administrador'),
+    path('api/condominio/registrar-administrador/', views.RegistrarCondominioView.as_view(), name='registrar-condominio-administrador'),
     path('api/condominio/actualizar/<pk>', views.CondominioUpdateAPIView.as_view()),
 
     path('api/propiedad/registar', views.PropiedadCreateAPIView.as_view()),
@@ -47,8 +47,8 @@ urlpatterns = [
     path('api/usuario/cambiar-password/', views.CambiarPasswordView.as_view(), name='cambiar-password'),
     path('api/usuario/registrar/', views.RegistrarUsuarioView.as_view(), name='registrar'),
     path('api/usuario/recuperar-password/', views.GenerarTokenView.as_view(), name='recuperar-password'),
-    path('api/usuario/establecer-password/', views.EstablecerPasswordView.as_view(), name='establecer-password'),
-    path('api/usuario/conserje-password/', views.RegistrarConserjeConTokenView.as_view(), name='conserje-password'),
+    path('api/usuario/reestablecer-password/', views.EstablecerPasswordView.as_view(), name='reestablecer-password'),
+    path('api/usuario/registrar-conserje-token/', views.RegistrarConserjeConTokenView.as_view(), name='conserje-token'),
     
     
 ]

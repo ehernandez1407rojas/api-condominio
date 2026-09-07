@@ -74,7 +74,7 @@ class RegistrarPropietarioUseCase:
                     'El usuario ya está registrado en otro condominio.'
                 )
 
-        # 4. Obtener el rol PROPIETARIO.
+        # 4. Obtener el ID rol de PROPIETARIO.
         rol_propietario = Rol.objects.get(
             clave="PROPIETARIO"
         )

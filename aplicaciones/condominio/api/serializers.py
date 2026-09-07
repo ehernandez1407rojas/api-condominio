@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from django.utils import timezone
 from django.db.models import Q
-from .constants import PASSWORD_MIN_LENGTH
+from .constants import PASSWORD_MIN_LENGTH, MESES_EXIGIBLES_POSTERIORES_HOY
 
 from ..models import *
 
@@ -154,12 +154,7 @@ class PropiedadSerializer(CreoModificoSerializer):
         return [field for field in base_fields if field != 'correo']  # Excluye campo
     
                         
-class CuotaCobradaSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CuotaCobrada
-        fields = (
-            '__all__'
-    )
+
 
 class EstadoCondominioSerializer(serializers.ModelSerializer):
     class Meta:
@@ -268,4 +263,77 @@ class RegistrarConserjeTokenResponseSerializer(serializers.Serializer):
     email_whatsapp = serializers.CharField( source="usuario.email_whatsapp"    )
     rol = serializers.CharField( source="usuario_rol.rol.clave"    )    
     token_temporal = serializers.IntegerField() 
+
+
+# la basica que pone todos los campos en el payload
+# se descarta en requerimientos reales de negocio
+""" 
+class CuotaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Cuota
+        fields = ('__all__')
+
+class CuotaCobradaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CuotaCobrada
+        fields = (
+            '__all__'
+    )     
+"""
+
+# # Serializer  para registrar una cuota y las cuotas exigibles de manera interna a los propietarios
+class DefinirCuotaSerializer(serializers.Serializer): 
+    tipo_cuota = serializers.PrimaryKeyRelatedField(
+        queryset=TipoCuota.objects.all()
+        )   
+    nombre = serializers.CharField(max_length=100)
+    importe = serializers.DecimalField(decimal_places=2, max_digits=12)
+    aplica_desde = serializers.DateField()
+    aplica_hasta = serializers.DateField()    
     
+# # Serializer de respuesta por el registro una cuota y las cuotas exigibles de manera interna a los propietarios
+class DefinirCuotaResponseSerializer(serializers.Serializer): 
+    nombre = serializers.CharField()
+    tipo_cuota = serializers.CharField()
+    cuotas_exigibles = serializers.IntegerField()
+
+  
+# # Serializer  para registrar la cancelacion de una cuota y las cuotas exigibles pendientes de manera interna a los propietarios
+class CancelarCuotaSerializer(serializers.Serializer): 
+    cuota = serializers.PrimaryKeyRelatedField(
+            queryset=Cuota.objects.all()
+        )    
+    comentario_cancelacion = serializers.CharField(max_length=100)
+
+# # Serializer  para la respuesta de registrar la cancelacion de una cuota y las cuotas exigibles pendientes de manera interna a los propietarios
+class CancelarCuotaResponseSerializer(serializers.Serializer): 
+    nombre = serializers.CharField()   
+    tipo_cuota = serializers.CharField()
+    cuotas_exigibles_canceladas = serializers.IntegerField()    
+
+# # Serializer  para registrar el cobro de una cuota
+class CobrarCuotaSerializer(serializers.Serializer): 
+    propiedad = serializers.PrimaryKeyRelatedField(queryset=Propiedad.objects.all())
+    cuota_exigible = serializers.PrimaryKeyRelatedField(queryset=CuotaExigible.objects.all())
+    importe_cobrado = serializers.DecimalField(decimal_places=2, max_digits=12)
+    descripcion_comprobante = serializers.CharField(max_length=100)
+
+
+# # Serializer  para la respuesta de registrar el cobro de una cuota
+class CobrarCuotaResponseSerializer(serializers.Serializer): 
+    propiedad = serializers.CharField()   
+    importe_cobrado = serializers.DecimalField(decimal_places=2, max_digits=12)
+
+
+# # Serializer  para validar el cobro de una cuota
+class ValidarCobroSerializer(serializers.Serializer):     
+    cuota_cobrada = serializers.PrimaryKeyRelatedField(queryset=CuotaCobrada.objects.all())    
+    comentario_validacion = serializers.CharField(max_length=100)
+
+
+# # Serializer  para la respuesta de validar el cobro de una cuota
+class ValidarCobroResponseSerializer(serializers.Serializer): 
+    comentario = serializers.CharField()   
+    
+
+     

@@ -6,3 +6,7 @@ from .establecer_password_con_token import EstablecerPasswordConTokenUseCase
 from .registra_propietario_con_token import RegistrarPropietarioConTokenUseCase
 from .registrar_conserje import RegistrarConserjeUseCase
 from .registra_conserje_con_token import RegistrarConserjeConTokenUseCase
+from .definir_cuota import DefinirCuotaUseCase
+from .cancelar_cuota import CancelarCuotaUseCase
+from .cobrar_cuota import CobrarCuotaUseCase
+from .validar_cobro import ValidarCobroUseCase

@@ -13,7 +13,7 @@ from .serializers import (
     RegistrarCondominioSerializer, 
     RegistrarCondominioResponseSerializer,
     CambiarPasswordSerializer,
-    PropiedadSerializer, CambiarPasswordResponseSerializer, CondominioSerializer, PaginationSerializer, CuotaCobradaSerializer,
+    PropiedadSerializer, CambiarPasswordResponseSerializer, CondominioSerializer, PaginationSerializer, 
     RegistrarPropietarioResponseSerializer, RegistrarPropietarioSerializer,
     GenerarTokenSerializer, GenerarTokenResponseSerializer,
     EstablecerPasswordSerializer, EstablecerPasswordResponseSerializer,
@@ -202,11 +202,14 @@ class PropiedadDetalle(RetrieveAPIView):
     serializer_class = PropiedadSerializer
     queryset = Propiedad.objects.all()
         
-        
+"""         
 class CuotaCobradaGuardar(CreateAPIView):
+    permission_classes = [IsAuthenticated]
+
     serializer_class = CuotaCobradaSerializer
     queryset = CuotaCobrada.objects.all()
     
+ """
 class PropiedadCreateAPIView(CreateAPIView):
     serializer_class = PropiedadSerializer
     queryset = Propiedad.objects.all()
