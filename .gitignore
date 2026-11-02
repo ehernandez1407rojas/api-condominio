@@ -18,3 +18,6 @@ __pycache__/
 
 # copias temporales
 copia*
+
+# los staticfiles
+staticfiles*

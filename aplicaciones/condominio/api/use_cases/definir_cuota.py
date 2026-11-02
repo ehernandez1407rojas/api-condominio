@@ -74,6 +74,7 @@ class DefinirCuotaUseCase:
             importe=importe,
             aplica_desde=aplica_desde,
             aplica_hasta=aplica_hasta,
+            usuario_creo=administrador
         )
 
         # 6 Obtener las propiedades registradas del condominio para generar los exigibles
@@ -107,7 +108,8 @@ class DefinirCuotaUseCase:
                         propiedad = propiedad,
                         cuota = cuota,
                         fecha_exigibilidad = fecha,
-                        importe_cuota = cuota.importe,                        
+                        importe_cuota = cuota.importe,
+                        usuario_creo=administrador                        
                     )
                 )
 

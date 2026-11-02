@@ -55,7 +55,17 @@ class CobrarCuotaUseCase:
 
                         
         # 4. Validar la cuota exigible -- Validar que la cuota exigible que se va a cobrar sea la mas antigua en estado EXIGIBLE = 'E'    
-        # y que sea del mismo tipo de cuota
+        # y que sea del mismo tipo de cuota que sea del condominio y de la propiedad
+
+        if cuota_exigible.condominio != condominio:
+            raise ValidationError(
+                'La cuota exigible no pertenece al condominio de quien esta cobrando.'
+            )
+
+        if cuota_exigible.propiedad != propiedad:
+            raise ValidationError(
+                'La cuota exigible no pertenece a la propiedad que se esta cobrando.'
+            )
 
         if cuota_exigible.estado != 'E':
             raise ValidationError(
@@ -80,6 +90,7 @@ class CobrarCuotaUseCase:
         # validar la prelacion entre tipo de cuota ORDINARIA vs EXTRAORDINARIA
         if tipo_cuota == 'EXTRAORDINARIA':
             cuota_ordinaria = CuotaExigible.objects.filter(
+            condominio=condominio,
             propiedad=propiedad,
             estado='E',
             cuota__tipo_cuota__clave='ORDINARIA',
@@ -121,6 +132,7 @@ class CobrarCuotaUseCase:
         
         # Encontrar Cuota exigible inmediata anterior
         cuota_exigible_anterior = CuotaExigible.objects.filter(
+            condominio=condominio,
             propiedad=propiedad,
             cuota=cuota_exigible.cuota,
             fecha_exigibilidad__lt=cuota_exigible.fecha_exigibilidad,
@@ -181,7 +193,8 @@ class CobrarCuotaUseCase:
             cuando_valido=hoy_valido,
             esta_validada=ya_esta_validada,
             saldo=saldo,
-            comentario_validacion=comentario_validacion
+            comentario_validacion=comentario_validacion,
+            usuario_creo=administrador_conserje
 
         )
 
@@ -189,7 +202,8 @@ class CobrarCuotaUseCase:
         # 10. Determinar estado de exigibilidad
         if cuota_cobrada.saldo <= 0:
             cuota_exigible.estado = 'P'
-            cuota_exigible.save(update_fields=['estado'])
+            cuota_exigible.usuario_modifico
+            cuota_exigible.save(update_fields=['estado','usuario_modifico', 'fecha_modificacion'])
 
         return {
             "propiedad": propiedad.nombre,

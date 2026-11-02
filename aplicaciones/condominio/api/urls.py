@@ -45,6 +45,7 @@ urlpatterns = [
 
     path('api/usuario/login/', views.LoginView.as_view(), name='login'),
     path('api/usuario/cambiar-password/', views.CambiarPasswordView.as_view(), name='cambiar-password'),
+    path('api/usuario/reiniciar-password/', views.ReiniciarPaswordView.as_view(), name='reiniciar-password'),
     path('api/usuario/registrar/', views.RegistrarUsuarioView.as_view(), name='registrar'),
     path('api/usuario/recuperar-password/', views.GenerarTokenView.as_view(), name='recuperar-password'),
     path('api/usuario/reestablecer-password/', views.EstablecerPasswordView.as_view(), name='reestablecer-password'),

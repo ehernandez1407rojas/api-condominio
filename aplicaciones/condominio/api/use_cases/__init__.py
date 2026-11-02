@@ -10,3 +10,16 @@ from .definir_cuota import DefinirCuotaUseCase
 from .cancelar_cuota import CancelarCuotaUseCase
 from .cobrar_cuota import CobrarCuotaUseCase
 from .validar_cobro import ValidarCobroUseCase
+from .registrar_tipo_gasto import RegistrarTipoGastoUseCase
+from .actualizar_tipo_gasto import ActualizarTipoGastoUseCase
+from .registrar_sub_tipo_gasto import RegistrarSubTipoGastoUseCase
+from .actualizar_sub_tipo_gasto import ActualizarSubTipoGastoUseCase
+from .registrar_proveedor import RegistrarProveedorUseCase
+from .actualizar_proveedor import ActualizarProveedorUseCase
+from .actualizar_situacion_proveedor import ActualizarSituacionProveedorUseCase 
+from .registrar_comentario_proveedor import RegistrarComentarioProveedorUseCase
+from .registrar_gasto_pagado import RegistrarGastoPagadoUseCase
+from .cancelar_gasto_pagado import CancelarGastoPagadoUseCase
+from .autorizar_gasto_pagado import AutorizarGastoPagadoUseCase
+from .reiniciar_password import ReiniciarPasswordUseCase
+

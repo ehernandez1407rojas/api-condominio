@@ -3,16 +3,15 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils import timezone
 
-from ...models import (
-    Usuario,
-    UsuarioRol,
-    Rol,    
-)
+from ...models import (    Usuario,    UsuarioRol,    Rol,    )
+# 👇 Import ABSOLUTO desde la raíz del proyecto
+from infraestructure.decorators import manejar_unique_violation
 
 class RegistrarConserjeUseCase:
 
     @staticmethod
     @transaction.atomic
+    @manejar_unique_violation
     def execute(
         *,
         administrador,
@@ -62,8 +61,9 @@ class RegistrarConserjeUseCase:
         else:
             if usuario.condominio is None:
                 usuario.condominio = condominio
+                usuario.usuario_modifico=administrador
                 usuario.save(
-                    update_fields=['condominio']
+                    update_fields=['condominio','usuario_modifico', 'fecha_modificacion']
                 )
 
             elif usuario.condominio != condominio:
@@ -71,8 +71,8 @@ class RegistrarConserjeUseCase:
                     'El usuario ya está registrado en otro condominio.'
                 )
 
-        # 4. Obtener el rol PROPIETARIO.
-        rol_propietario = Rol.objects.get(
+        # 4. Obtener el rol CONSERJE.
+        rol_conserje = Rol.objects.get(
             clave="CONSERJE"
         )
 
@@ -80,7 +80,7 @@ class RegistrarConserjeUseCase:
         usuario_rol = UsuarioRol.objects.filter(
             condominio=condominio,
             usuario=usuario,
-            rol=rol_propietario,
+            rol=rol_conserje,
             activo=True
         ).first()
 
@@ -89,9 +89,14 @@ class RegistrarConserjeUseCase:
             usuario_rol = UsuarioRol.objects.create(
                 condominio=condominio,
                 usuario=usuario,
-                rol=rol_propietario,
+                rol=rol_conserje,
                 usuario_creo=administrador,
-            )        
+            ) 
+        else:
+            raise ValidationError(
+                    f'El conserje: {nombre_completo} ya existe en ese condominio'
+            )
+
 
         return {            
             "usuario": usuario,

@@ -75,11 +75,14 @@ class CancelarCuotaUseCase:
         cuota.activo = False
         cuota.aplica_hasta = fecha_cancelacion
         cuota.comentario_cancelacion = comentario_cancelacion
+        cuota.usuario_modifico=administrador
         cuota.save(
             update_fields=[
                 'activo',
                 'aplica_hasta',
-                'comentario_cancelacion'
+                'comentario_cancelacion',
+                'usuario_modifico',
+                'fecha_modificacion'
             ]
         )
                 
@@ -95,7 +98,8 @@ class CancelarCuotaUseCase:
         estado='E',
         fecha_exigibilidad__gte=proximo_mes_dia_uno
         ).update(            
-            estado='C'
+            estado='C',
+            fecha_modificacion=timezone.now(),
         )
                
 

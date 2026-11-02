@@ -4,6 +4,8 @@ from django.core.exceptions import ValidationError
 
 from .registrar_propietario import RegistrarPropietarioUseCase
 from .generar_token import GenerarTokenUseCase
+# 👇 Import ABSOLUTO desde la raíz del proyecto
+from infraestructure.decorators import manejar_unique_violation
 
 
 class RegistrarPropietarioConTokenUseCase:
@@ -11,6 +13,7 @@ class RegistrarPropietarioConTokenUseCase:
     
     @staticmethod
     @transaction.atomic
+    @manejar_unique_violation
     def execute(
         *,
         administrador,

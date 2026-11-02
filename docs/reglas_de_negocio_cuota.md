@@ -2,7 +2,7 @@
 
 ## 1. Propósito
 
-Este documento establece las reglas de negocio que definen el funcionamiento de la aplicación para la administración de condominios en lo referente a las cuotas: definición, tipos de cuotas, cobro y estados de adeudos.
+Este documento establece las reglas de negocio que definen el funcionamiento de la aplicación para la administración de condominios en lo referente a las cuotas: definición, tipos de cuotas, cobro y estados de adeudos, en caso de cobros tardíos definición de penalidad
 
 La funcionalidad actual solo recibe depósitos en efectivo. La recepción del depósito tendrá una firma de aceptación del receptor y un parámetro a nivel condominio para incluir o no la confirmación del depósito.
 

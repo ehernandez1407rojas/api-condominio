@@ -4,22 +4,28 @@ from rest_framework.exceptions import ValidationError as DRFValidationError  # �
 from django.contrib.auth.password_validation import validate_password
 
 from ...models import Condominio, Usuario, UsuarioRol, Rol
+# 👇 Import ABSOLUTO desde la raíz del proyecto
+from infraestructure.decorators import manejar_unique_violation
+
 
 
 class RegistrarCondominioUseCase:
 
     @staticmethod
     @transaction.atomic
+    @manejar_unique_violation
     def execute(
         *,
         nombre,
         nombre_corto,
         direccion,
         inicio_servicio,
+        propiedad_cantidad,
         email_whatsapp,
         nombre_completo,
         password,
     ):
+       
         # 0.1 Crear un usuario temporal para aplicar las validaciones del password que se heredan de USER
         usuario_temporal = Usuario(
             email_whatsapp=email_whatsapp,
@@ -42,6 +48,7 @@ class RegistrarCondominioUseCase:
             nombre_corto=nombre_corto,
             direccion=direccion,
             inicio_servicio=inicio_servicio,
+            propiedad_cantidad=propiedad_cantidad,
         )
 
         # 2. Crear el usuario administrador.
@@ -55,7 +62,8 @@ class RegistrarCondominioUseCase:
 
         # 3. Completar la auditoría del condominio.
         condominio.usuario_creo = usuario
-        condominio.save(update_fields=["usuario_creo"])
+        condominio.usuario_modifico=usuario
+        condominio.save(update_fields=["usuario_creo","usuario_modifico", "fecha_modificacion"])
 
         # 4. Obtener el rol ADMINISTRADOR.
         rol_administrador = Rol.objects.get(

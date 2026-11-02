@@ -18,13 +18,13 @@ from .serializers import (
     GenerarTokenSerializer, GenerarTokenResponseSerializer,
     EstablecerPasswordSerializer, EstablecerPasswordResponseSerializer,
     RegistrarPropietarioTokenSerializer, RegistrarPropietarioTokenResponseSerializer,
-    RegistrarConserjeTokenSerializer, RegistrarConserjeTokenResponseSerializer
+    RegistrarConserjeTokenSerializer, RegistrarConserjeTokenResponseSerializer, ReiniciarPaswordSerializer, ReiniciarPaswordResponseSerializer
 
 )
 
 from .use_cases import (RegistrarCondominioUseCase, CambiarPasswordUseCase, RegistrarPropietarioUseCase
                         , GenerarTokenUseCase, EstablecerPasswordConTokenUseCase, RegistrarPropietarioConTokenUseCase
-                        , RegistrarConserjeConTokenUseCase)
+                        , RegistrarConserjeConTokenUseCase, ReiniciarPasswordUseCase)
 
 from rest_framework_simplejwt.views import TokenObtainPairView
 
@@ -463,4 +463,49 @@ class RegistrarConserjeConTokenView(APIView):
         return Response(
             response_serializer.data,
             status=status.HTTP_201_CREATED
+        )
+
+
+class ReiniciarPaswordView(APIView):
+
+    @extend_schema(
+        request=ReiniciarPaswordSerializer,
+        responses={
+        200: ReiniciarPaswordResponseSerializer
+            },
+        summary="Reiniciar Password",
+        description=(
+            "Reiniciar Password"
+            ),
+        )
+
+    def post(self, request):
+
+        serializer = ReiniciarPaswordSerializer(
+            data=request.data
+        )
+
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            resultado = ReiniciarPasswordUseCase.execute(                
+                **serializer.validated_data
+            )
+
+        except ValidationError as e:
+            return Response(
+                {
+                    'detail': e.messages
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 3. Serializar la respuesta.
+        response_serializer = ReiniciarPaswordResponseSerializer(
+            resultado
+        )
+
+        return Response(
+            response_serializer.data,
+            status=status.HTTP_200_OK
         )

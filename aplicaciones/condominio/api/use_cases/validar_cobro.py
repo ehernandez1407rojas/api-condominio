@@ -68,8 +68,10 @@ class ValidarCobroUseCase:
         cuota_cobrada.cuando_valido=timezone.now()
         cuota_cobrada.esta_validada=True
         cuota_cobrada.comentario_validacion=comentario_validacion
+        cuota_cobrada.usuario_modifico=administrador
 
-        cuota_cobrada.save(update_fields=['quien_valido', 'cuando_valido', 'esta_validada', 'comentario_validacion'])
+        cuota_cobrada.save(update_fields=['quien_valido', 'cuando_valido', 'esta_validada', 'comentario_validacion'
+                        , 'usuario_modifico', 'fecha_modificacion' ])
 
 
         return {

@@ -3,7 +3,7 @@ import environ
 from pathlib import Path
 from datetime import timedelta
 
-
+from aplicaciones.condominio.api.constants import PASSWORD_MIN_LENGTH
 
 """
 Django settings for condominio project.
@@ -58,6 +58,7 @@ LOCAL_APPS = [
 TERCEROS_APPS = [
     'rest_framework',
     'drf_spectacular',
+    'drf_spectacular_sidecar',  # <-- Añadir esto
     'rest_framework_simplejwt',
     
 ]
@@ -108,7 +109,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
         'OPTIONS': {
-            'min_length': 6,  # 
+            'min_length': PASSWORD_MIN_LENGTH,  # 
         }
     },
     {
@@ -139,6 +140,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configuración de drf-spectacular
 REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'infraestructure.exception_handler.custom_exception_handler', 
+
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -162,13 +165,20 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
+    # Forzar a que ReDoc use los archivos locales (sidecar)
+    'REDOC_DIST': 'SIDECAR',
     # Otras configuraciones...
+    # (Opcional pero recomendado) También para Swagger UI
+    'SWAGGER_UI_DIST': 'SIDECAR',
+    'SWAGGER_UI_FAVICON_HREF': 'SIDECAR',
+
     'SCHEMA_PATH_PREFIX': r'/api/',
     'SWAGGER_UI_SETTINGS': {
         'deepLinking': True,
         'persistAuthorization': True,
         'displayRequestDuration': True,
     },
+    
     'ENUM_NAME_OVERRIDES': {
         # Puedes sobreescribir nombres de enums aquí
     },

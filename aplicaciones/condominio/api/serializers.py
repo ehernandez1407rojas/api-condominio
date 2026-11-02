@@ -1,6 +1,9 @@
 from rest_framework import serializers, pagination
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+from django.core.validators import RegexValidator, validate_email
+from django.core.exceptions import ValidationError as DjangoValidationError
+
 
 from django.utils import timezone
 from django.db.models import Q
@@ -9,46 +12,44 @@ from .constants import PASSWORD_MIN_LENGTH, MESES_EXIGIBLES_POSTERIORES_HOY
 from ..models import *
 
 
+class NormalizaTextoMixin:
+
+    campos_excluidos_normalizacion = {'password', 'email_whatsapp'}
+
+    def to_internal_value(self, data):
+        data = data.copy()
+
+        for field_name, field in self.fields.items():
+
+            if field_name not in data:
+                continue
+
+            if field_name in self.campos_excluidos_normalizacion:
+                continue
+
+            valor = data[field_name]
+
+            if not isinstance(valor, str):
+                continue
+
+            if isinstance(field, serializers.EmailField):
+                data[field_name] = valor.lower()
+
+            elif isinstance(field, serializers.CharField):
+                data[field_name] = valor.upper()
+
+        return super().to_internal_value(data)
+
 class PaginationSerializer(pagination.PageNumberPagination):
     page_size = 3
     max_page_size = 20
 
 
-class CreoModificoSerializer(serializers.ModelSerializer):
+class CreoModificoSerializer(NormalizaTextoMixin, serializers.ModelSerializer):
     class Meta:
         fields = '__all__'
         read_only_fields = ('fecha_creacion', 'fecha_modificacion', 'usuario_modifico')
-                
-    """ def create(self, validated_data):
-        validated_data['usuario_creo'] = self.context['request'].user
-        return super().create(validated_data) """
-    
-    def to_internal_value(self, data):
-        # Convierte campos específicos a mayúsculas antes de validar
-        uppercase_fields = self.get_string_fields()  # Método que puedes sobrescribir en hijos
-        for field in uppercase_fields:
-            if field in data and isinstance(data[field], str):
-                data[field] = data[field].upper()
-                
-         # Opcional: Validar formato de correo (si es sensible a mayúsculas)
-        if 'correo' in data:
-            data['correo'] = data['correo'].lower()  # Ejemplo: correo siempre en minúsculas
-            
-        return super().to_internal_value(data)
-    
-    def get_string_fields(self):
-        """Obtiene automáticamente todos los campos CharField del modelo"""
-        if not hasattr(self, 'Meta') or not hasattr(self.Meta, 'model'):
-            return []
-            
-        from django.db.models import CharField, TextField
-        string_fields = []
-        
-        for field in self.Meta.model._meta.get_fields():
-            if isinstance(field, (CharField, TextField)):
-                string_fields.append(field.name)
-        
-        return string_fields
+                                
     
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -62,7 +63,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # token['tipo_usuario'] = user.tipo_usuario
         token['nombre_completo'] = user.nombre_completo
 
-        if user.condominio:
+        if user.condominio:            
             roles = UsuarioRol.objects.filter(
                 usuario=user,
                 condominio=user.condominio,
@@ -115,18 +116,34 @@ class CondominioSerializer(CreoModificoSerializer):
         return [field for field in base_fields if field != 'correo']  # Excluye campo
 
 # 1. Serializer para la PETICIÓN (Request)
-class RegistrarCondominioSerializer(serializers.Serializer):
+class RegistrarCondominioSerializer(NormalizaTextoMixin, serializers.Serializer):
     nombre = serializers.CharField(max_length=50)
     nombre_corto = serializers.CharField(max_length=20)
     direccion = serializers.CharField(max_length=100)
     inicio_servicio = serializers.DateField()
-
+    propiedad_cantidad = serializers.IntegerField()
     email_whatsapp = serializers.CharField(max_length=50)
     nombre_completo = serializers.CharField(max_length=150)
     password = serializers.CharField(
         write_only=True,
         min_length=PASSWORD_MIN_LENGTH
     )
+
+    def validate_email_whatsapp(self, value):
+        valor = value.strip()
+
+        # 1. Si son solo números, es un WhatsApp válido
+        if valor.isdigit():
+            return valor
+
+        # 2. Si no son solo números, verificar si es un email válido
+        try:
+            validate_email(valor)
+            return valor
+        except DjangoValidationError:
+            raise serializers.ValidationError(
+                'Ingrese un correo electrónico válido o solo números para el WhatsApp.'
+            )
 
 # 2. (Opcional) Serializer para la RESPUESTA (Response)
 class RegistrarCondominioResponseSerializer(serializers.Serializer):
@@ -145,7 +162,7 @@ class UsuarioRolSerializer(serializers.Serializer):
             '__all__'
     )
 
-class PropiedadSerializer(CreoModificoSerializer):
+class PropiedadSerializer( CreoModificoSerializer):
     class Meta(CreoModificoSerializer.Meta):
         model = Propiedad
         
@@ -156,19 +173,21 @@ class PropiedadSerializer(CreoModificoSerializer):
                         
 
 
-class EstadoCondominioSerializer(serializers.ModelSerializer):
+class EstadoCondominioSerializer(NormalizaTextoMixin, serializers.ModelSerializer):
     class Meta:
         model = EstadoCondominio
         fields = (
             '__all__'
         )        
 
-class RolSerializer(serializers.ModelSerializer):
+class RolSerializer(NormalizaTextoMixin, serializers.ModelSerializer):
     class Meta:
         model = Rol
         fields = (
             '__all__'
         )         
+
+
 
 class CambiarPasswordSerializer(serializers.Serializer):
     password_actual = serializers.CharField(
@@ -184,7 +203,7 @@ class CambiarPasswordResponseSerializer(serializers.Serializer):
     detail = serializers.CharField()    
 
 # # Serializer de entrada para registrar un propietario y su propiedad.
-class RegistrarPropietarioSerializer(serializers.Serializer):
+class RegistrarPropietarioSerializer(NormalizaTextoMixin, serializers.Serializer):
     nombre = serializers.CharField(max_length=50)    
     direccion = serializers.CharField(max_length=100)    
 
@@ -214,6 +233,8 @@ class TipoTokenSerializer(serializers.ModelSerializer):
             '__all__'
     )         
 
+
+
 class GenerarTokenSerializer(serializers.Serializer):
     email_whatsapp = serializers.CharField(max_length=50)
     tipo_token = serializers.CharField(max_length=50)
@@ -233,7 +254,7 @@ class EstablecerPasswordResponseSerializer(serializers.Serializer):
                   
 
 # # Serializer de entrada para registrar un propietario y su propiedad.
-class RegistrarPropietarioTokenSerializer(serializers.Serializer):
+class RegistrarPropietarioTokenSerializer(NormalizaTextoMixin, serializers.Serializer):
     nombre_propiedad = serializers.CharField(max_length=50)    
     direccion = serializers.CharField(max_length=100)    
 
@@ -251,7 +272,7 @@ class RegistrarPropietarioTokenResponseSerializer(serializers.Serializer):
     token_temporal = serializers.IntegerField() 
 
 # # Serializer de entrada para registrar un conserje.
-class RegistrarConserjeTokenSerializer(serializers.Serializer):    
+class RegistrarConserjeTokenSerializer(NormalizaTextoMixin, serializers.Serializer):    
     email_whatsapp = serializers.CharField(max_length=50)
     nombre_completo = serializers.CharField(max_length=150)
 
@@ -282,10 +303,12 @@ class CuotaCobradaSerializer(serializers.ModelSerializer):
 """
 
 # # Serializer  para registrar una cuota y las cuotas exigibles de manera interna a los propietarios
-class DefinirCuotaSerializer(serializers.Serializer): 
+class DefinirCuotaSerializer(NormalizaTextoMixin, serializers.Serializer): 
     tipo_cuota = serializers.PrimaryKeyRelatedField(
-        queryset=TipoCuota.objects.all()
-        )   
+        queryset=TipoCuota.objects.all(),
+        help_text="ID del Tipo de Cuota. Opciones válidas: 1=ORDINARIA, 2=EXTRAORDINARIA"        
+    ) 
+
     nombre = serializers.CharField(max_length=100)
     importe = serializers.DecimalField(decimal_places=2, max_digits=12)
     aplica_desde = serializers.DateField()
@@ -299,7 +322,7 @@ class DefinirCuotaResponseSerializer(serializers.Serializer):
 
   
 # # Serializer  para registrar la cancelacion de una cuota y las cuotas exigibles pendientes de manera interna a los propietarios
-class CancelarCuotaSerializer(serializers.Serializer): 
+class CancelarCuotaSerializer(NormalizaTextoMixin, serializers.Serializer): 
     cuota = serializers.PrimaryKeyRelatedField(
             queryset=Cuota.objects.all()
         )    
@@ -312,7 +335,7 @@ class CancelarCuotaResponseSerializer(serializers.Serializer):
     cuotas_exigibles_canceladas = serializers.IntegerField()    
 
 # # Serializer  para registrar el cobro de una cuota
-class CobrarCuotaSerializer(serializers.Serializer): 
+class CobrarCuotaSerializer(NormalizaTextoMixin, serializers.Serializer): 
     propiedad = serializers.PrimaryKeyRelatedField(queryset=Propiedad.objects.all())
     cuota_exigible = serializers.PrimaryKeyRelatedField(queryset=CuotaExigible.objects.all())
     importe_cobrado = serializers.DecimalField(decimal_places=2, max_digits=12)
@@ -326,7 +349,7 @@ class CobrarCuotaResponseSerializer(serializers.Serializer):
 
 
 # # Serializer  para validar el cobro de una cuota
-class ValidarCobroSerializer(serializers.Serializer):     
+class ValidarCobroSerializer(NormalizaTextoMixin, serializers.Serializer):     
     cuota_cobrada = serializers.PrimaryKeyRelatedField(queryset=CuotaCobrada.objects.all())    
     comentario_validacion = serializers.CharField(max_length=100)
 
@@ -336,4 +359,292 @@ class ValidarCobroResponseSerializer(serializers.Serializer):
     comentario = serializers.CharField()   
     
 
-     
+# # Serializer  para validar el registro de un tipo gasto
+class RegistrarTipoGastoSerializer(NormalizaTextoMixin,serializers.Serializer):     
+    clave = serializers.CharField(max_length=50)    
+    descripcion = serializers.CharField(max_length=100)
+    orden = serializers.DecimalField(max_digits=5, decimal_places=2)
+
+
+# # Serializer  para enviar  la respuesta del registro de un tipo gasto
+class RegistrarTipoGastoResponseSerializer(serializers.Serializer):    
+    id = serializers.IntegerField()
+    clave = serializers.CharField()
+    descripcion = serializers.CharField()
+    orden = serializers.DecimalField(max_digits=5, decimal_places=2)
+
+# # Serializer  para validar la actulizacion  de un tipo gasto
+class ActualizarTipoGastoSerializer(NormalizaTextoMixin,serializers.Serializer):    
+    clave = serializers.CharField(max_length=50, required=False)    
+    descripcion = serializers.CharField(max_length=100, required=False)
+    orden = serializers.DecimalField(max_digits=5, decimal_places=2, required=False)
+
+
+# # Serializer  para enviar  la respuesta de la actualizacion de un tipo gasto
+class ActualizarTipoGastoResponseSerializer(serializers.Serializer):    
+    id = serializers.IntegerField()
+    clave = serializers.CharField()
+    descripcion = serializers.CharField()
+    orden = serializers.DecimalField(max_digits=5, decimal_places=2)    
+    
+# # Serializer  para validar el registro de un sub tipo gasto
+class RegistrarSubTipoGastoSerializer(NormalizaTextoMixin, serializers.Serializer):   
+    tipo_gasto = serializers.PrimaryKeyRelatedField(queryset=TipoGasto.objects.all(), error_messages={
+            'does_not_exist': 'El tipo de gasto seleccionado no existe.'
+        })  
+    clave = serializers.CharField(max_length=50)    
+    descripcion = serializers.CharField(max_length=100)
+    orden = serializers.DecimalField(max_digits=5, decimal_places=2)
+
+
+# # Serializer  para enviar  la respuesta del registro de un sub tipo gasto
+class RegistrarSubTipoGastoResponseSerializer(serializers.Serializer):    
+    id = serializers.IntegerField()
+    clave = serializers.CharField()
+    descripcion = serializers.CharField()
+    orden = serializers.DecimalField(max_digits=5, decimal_places=2)
+
+# # Serializer  para validar la actualizacion  de un sub tipo gasto
+class ActualizarSubTipoGastoSerializer(NormalizaTextoMixin,serializers.Serializer):    
+    clave = serializers.CharField(max_length=50, required=False)    
+    descripcion = serializers.CharField(max_length=100, required=False)
+    orden = serializers.DecimalField(max_digits=5, decimal_places=2, required=False)
+
+
+# # Serializer  para enviar  la respuesta de la actualizacion de un sub tipo gasto
+class ActualizarSubTipoGastoResponseSerializer(serializers.Serializer):    
+    id = serializers.IntegerField()
+    clave = serializers.CharField()
+    descripcion = serializers.CharField()
+    orden = serializers.DecimalField(max_digits=5, decimal_places=2)    
+
+# # Serializer  para validar el registro del proveedor
+class RegistrarProveedorSerializer(    NormalizaTextoMixin,    serializers.Serializer):
+    nombre = serializers.CharField(max_length=50)
+    direccion = serializers.CharField(max_length=100)
+    celular = serializers.CharField( max_length=30, min_length=10, required=False, allow_blank=True
+            , validators=[
+                RegexValidator(
+                    regex=r'^\d+$',
+                    message='El celular debe contener solamente números.',
+                    code='invalid_numeric'
+                )
+            ]
+            , allow_null=True )
+    correo = serializers.EmailField( max_length=30, required=False, allow_blank=True, allow_null=True )   
+
+    def validate_celular(self, value):
+        if value == '':
+            return None
+
+        return value
+
+    def validate_correo(self, value):
+        if value == '':
+            return None
+
+        return value 
+
+class RegistrarProveedorResponseSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    nombre = serializers.CharField()
+    direccion = serializers.CharField()
+    celular = serializers.CharField(
+        allow_null=True
+    )    
+
+
+class ActualizarProveedorSerializer(    NormalizaTextoMixin,    serializers.Serializer):
+    nombre = serializers.CharField(max_length=50, required=False)
+    direccion = serializers.CharField(max_length=100, required=False)
+    celular = serializers.CharField( max_length=30, min_length=10, required=False, allow_blank=True
+            , validators=[
+                RegexValidator(
+                    regex=r'^\d+$',
+                    message='El celular debe contener solamente números.',
+                    code='invalid_numeric'
+                )
+            ]
+            , allow_null=True )
+    correo = serializers.EmailField( max_length=30, required=False, allow_blank=True, allow_null=True )   
+
+    def validate_celular(self, value):
+        if value == '':
+            return None
+
+        return value
+
+    def validate_correo(self, value):
+        if value == '':
+            return None
+
+        return value 
+
+class ActualizarProveedorResponseSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    nombre = serializers.CharField()
+    direccion = serializers.CharField()
+    celular = serializers.CharField(
+        allow_null=True
+    ) 
+
+# # Serializer  para validar la actualizacion de la situacion de un proveedor
+class ActualizarSituacionProveedorSerializer(NormalizaTextoMixin,serializers.Serializer):   
+    situacion_proveedor = serializers.PrimaryKeyRelatedField(queryset=SituacionProveedor.objects.all()
+            , error_messages={
+                'required': 'Debe indicar la situación que desea asignar al proveedor.',
+                'does_not_exist': 'La situacion del proveedor seleccionado no existe.',
+                'null': 'Debe indicar una situación para el proveedor.',
+            }
+        )      
+
+# # Serializer  para la respuesta de la actualizacion de la situacion de un proveedor
+class ActualizarSituacionProveedorResponseSerializer(serializers.Serializer):   
+    nombre = serializers.CharField()
+    situacion = serializers.CharField()
+
+# # Serializer  para validar el registro de un comentario a un proveedor
+class RegistrarComentarioProveedorSerializer(NormalizaTextoMixin,serializers.Serializer):   
+    proveedor = serializers.PrimaryKeyRelatedField(queryset=Proveedor.objects.all()
+            , error_messages={
+                'required': 'Debe indicar el proveedor.',
+                'does_not_exist': 'El proveedor seleccionado no existe.',
+                'null': 'Debe indicar un proveedor.',
+            }
+        )        
+    comentario = serializers.CharField(max_length=200)
+
+# # Serializer  para la respuesta del regisgtro de comentario a un proveedor
+class RegistrarComentarioProveedorResponseSerializer(serializers.Serializer):   
+    nombre = serializers.CharField()
+    comentario = serializers.CharField()    
+
+
+
+# # Serializer  para validar el registro un gasto pagado
+class RegistrarGastoPagadoSerializer(    NormalizaTextoMixin,    serializers.Serializer):
+    tipo_gasto = serializers.PrimaryKeyRelatedField(queryset=TipoGasto.objects.all()
+                , error_messages={
+                    'required': 'Debe indicar un tipo de gasto.',
+                    'does_not_exist': 'El tipo de gasto seleccionado no existe.',
+                    'null': 'Debe indicar un tipo de gasto.',
+                }                                    )
+    sub_tipo_gasto = serializers.PrimaryKeyRelatedField(queryset=SubTipoGasto.objects.all()
+                ,required=False
+                ,allow_null=True                                        
+                , error_messages={                                    
+                                    'does_not_exist': 'El sub tipo de gasto seleccionado no existe.',
+                                    'null': 'Debe indicar un sub tipo de gasto.',
+                                }                                        )
+    proveedor = serializers.PrimaryKeyRelatedField(queryset=Proveedor.objects.all()
+                ,required=False
+                ,allow_null=True                                     
+                , error_messages={                                  
+                                  'does_not_exist': 'El proveedor seleccionado no existe.',
+                                  'null': 'Debe indicar un proveedor.',
+                              }                                 )
+    importe_pagado = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal('0.01'),
+                        error_messages={
+                            'required': 'Debe indicar el importe pagado.',
+                            'invalid': 'El importe pagado no es válido.',                            
+                            'min_value': 'El importe pagado debe ser mayor a cero.',
+                        })
+    descripcion = serializers.CharField(max_length=200, min_length=10,
+                    error_messages={
+                    'required': 'Debe indicar una descripción del gasto.',
+                    'blank': 'Debe indicar una descripción del gasto.',
+                    'min_length': 'La descripción debe contener al menos 10 caracteres.',
+                    'max_length': 'La descripción no puede exceder 200 caracteres.',
+                    }                )
+    fecha = serializers.DateField( error_messages={
+            'required': 'Debe indicar la fecha del gasto.',
+            'invalid': 'La fecha del gasto no es válida.',
+        })
+    ## LO QUITAMOS HASTA QUE SE IMPLEMENTE minIO ## gasto_comprobante = serializers.CharField(max_length=100)
+
+# # Serializer  para la respuesta  del registro de un gasto pagado
+class RegistrarGastoPagadoResponseSerializer( serializers.Serializer):
+    tipo_gasto= serializers.CharField()         
+    descripcion= serializers.CharField()
+    importe= serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+# # Serializer  para validar la cancelacion del gasto pagado
+class CancelarGastoPagadoSerializer(NormalizaTextoMixin,serializers.Serializer):      
+    motivo_cancelacion = serializers.CharField(max_length=100, min_length=10,
+            error_messages={
+            'required': 'Debe indicar motivo de la cancelacion del gasto pagado.',
+            'blank': 'Debe indicar una descripción de la cancelacion del gasto.',
+            'min_length': 'La descripción debe contener al menos 10 caracteres.',
+            'max_length': 'La descripción no puede exceder 100 caracteres.',
+            }    )
+
+
+# # Serializer  para respuesta de la cancelación del gasto pagado
+class CancelarGastoPagadoResponseSerializer(serializers.Serializer):      
+    gasto= serializers.CharField()         
+    motivo_cancelacion= serializers.CharField()
+    fecha= serializers.DateField()
+
+# # Serializer  para respuesta de la autorizacion del gasto pagado
+class AutorizarGastoPagadoResponseSerializer(serializers.Serializer):      
+    descripcion= serializers.CharField()             
+    fecha= serializers.DateField()    
+
+# # Serializer  para validar el registro de un comite y el integrante administrador
+class RegistrarComiteSerializer(NormalizaTextoMixin, serializers.Serializer):   
+    nombre = serializers.CharField(max_length=50)   
+    descripcion= serializers.CharField(max_length=100)
+
+# # Serializer  para validar la respuesta al registro de un comite y el integrante administrador
+class RegistrarComiteResponseSerializer(serializers.Serializer):   
+    id  = serializers.IntegerField()  
+    nombre= serializers.CharField()    
+
+# # Serializer  para validar la transferencia de la administracion del condominio
+class TransferirAdministracionSerializer( NormalizaTextoMixin, serializers.Serializer):
+    administrador_nuevo = serializers.PrimaryKeyRelatedField( queryset=Usuario.objects.all() )
+    comentario = serializers.CharField( max_length=200, min_length=10, error_messages={                
+                'min_length': 'La descripción debe contener al menos 10 caracteres.',                
+            } )
+
+# # Serializer  para validar la respuesta de la transferencia de la administracion del condominio
+class TransferirAdministracionResponseSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    administrador_anterior = serializers.CharField()
+    administrador_nuevo = serializers.CharField()
+    fecha_transferencia = serializers.DateField()    
+
+class IntegranteComiteSerializer(serializers.Serializer):
+    usuario_id = serializers.IntegerField()
+    rol_id = serializers.IntegerField()
+
+# # Serializer  para validar la modificación de integrantes en el comité
+class ModificarIntegrantesComiteSerializer( NormalizaTextoMixin, serializers.Serializer):
+    comite = serializers.PrimaryKeyRelatedField(queryset=Comite.objects.all())
+    miembros_quitar = IntegranteComiteSerializer(
+        many=True,
+        required=False,
+        default=list
+    )
+    miembros_agregar = IntegranteComiteSerializer(
+        many=True,
+        required=False,
+        default=list
+    )     
+
+# # Serializer  para validar la modificación de integrantes en el comité
+class ModificarIntegrantesComiteResponseSerializer( NormalizaTextoMixin, serializers.Serializer):
+    nombre = serializers.CharField()
+    mensaje = serializers.CharField()
+   
+
+# # Serializer  para validar la reinicio de password
+class ReiniciarPaswordSerializer( NormalizaTextoMixin, serializers.Serializer):
+    email_whatsapp = serializers.CharField()
+
+
+# # Serializer  para validar la reinicio de password
+class ReiniciarPaswordResponseSerializer(  serializers.Serializer):
+    token = serializers.CharField()
+   

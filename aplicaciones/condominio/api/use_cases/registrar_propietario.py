@@ -3,6 +3,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.utils import timezone
 
+from infraestructure.decorators import manejar_unique_violation
 from ...models import (
     Usuario,
     UsuarioRol,
@@ -14,6 +15,7 @@ class RegistrarPropietarioUseCase:
 
     @staticmethod
     @transaction.atomic
+    @manejar_unique_violation
     def execute(
         *,
         administrador,
@@ -65,8 +67,9 @@ class RegistrarPropietarioUseCase:
         else:
             if usuario.condominio is None:
                 usuario.condominio = condominio
+                usuario.usuario_modifico=administrador
                 usuario.save(
-                    update_fields=['condominio']
+                    update_fields=['condominio','usuario_modifico', 'fecha_modificacion']
                 )
 
             elif usuario.condominio != condominio:

@@ -4,11 +4,8 @@ from django.contrib.auth.password_validation import validate_password  # 👈 Im
 from django.utils import timezone
 import hashlib
 
-from ...models import (
-    Usuario,    
-    TipoToken,
-    TokenUsuario,    
-)
+from ...models import (    Usuario,        TipoToken,    TokenUsuario,    )
+
 
 class EstablecerPasswordConTokenUseCase:
 
@@ -46,12 +43,13 @@ class EstablecerPasswordConTokenUseCase:
             })
 
         # 3. Establecer nuevo password
-        usuario.set_password(nuevo_password)
+        usuario.set_password(nuevo_password)       
         usuario.save(update_fields=["password"]) 
         
         # 4. Marcar token como utilizado
         token_obj.fecha_uso = timezone.now()
-        token_obj.save(update_fields=["fecha_uso"])
+        token_obj.usuario_modifico=usuario
+        token_obj.save(update_fields=["fecha_uso","usuario_modifico", "fecha_modificacion"])
 
         # 5. Retornar respuesta
         return {

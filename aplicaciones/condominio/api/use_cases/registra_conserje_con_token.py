@@ -4,13 +4,16 @@ from django.core.exceptions import ValidationError
 
 from .registrar_conserje import RegistrarConserjeUseCase
 from .generar_token import GenerarTokenUseCase
+# 👇 Import ABSOLUTO desde la raíz del proyecto
+from infraestructure.decorators import manejar_unique_violation
 
 
-class RegistrarConserjeConTokenUseCase:
+class RegistrarConserjeConTokenUseCase: 
     """Orquesta el registro del conserje y generación de token"""
     
     @staticmethod
     @transaction.atomic
+    @manejar_unique_violation
     def execute(
         *,
         administrador,

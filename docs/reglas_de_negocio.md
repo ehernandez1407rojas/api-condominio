@@ -37,6 +37,11 @@ Persona encargada de realizar funciones operativas dentro del condominio.
 
 El conserje puede realizar únicamente las operaciones que correspondan a sus facultades.
 
+## 2.4 Inquilino 
+
+Persona que renta una propiedad en el condominio.
+La administración y control de esta figura sera manual
+
 ---
 
 # 3. Conceptos generales
@@ -58,6 +63,9 @@ Los roles definidos actualmente son:
 * ADMINISTRADOR
 * PROPIETARIO
 * CONSERJE
+* INQUILINO
+
+Cabe señalar que para el INQUILINO no hay implicación en la aplicación.
 
 ---
 
@@ -277,3 +285,65 @@ El área de Registro cumple con las reglas de negocio cuando:
 * Se rechazan registros que no contienen la información obligatoria.
 * Se mantiene la integridad de la relación entre el condominio y sus usuarios.
 * Las operaciones administrativas solamente pueden ser realizadas por usuarios con las facultades correspondientes.
+
+
+### PARA EL CIERRE DEL BACKEND DE CONDOMINIO
+🗺️ Cierre Backend — API Condominio
+- ⬜ 1. Reglas de negocio de Comité
+- ⬜ 2. Modelos
+- ⬜ 3. Migraciones
+- ⬜ 4. Casos de uso / Endpoints
+- ⬜ 5. Pruebas
+- ⬜ 6. Documentación
+- ⬜ 7. Docker / Producción
+- ⬜ 8. Despliegue en Contabo
+
+
+### PARA EL CIERRE DEL BACKEND DE CONDOMINIO -DETALLE
+- ⬜ 1. Reglas de negocio de Comité
+- Confirmar que la versión actual es la definitiva.
+- Especialmente convocatorias, actas, participantes, poderes, quórum y votación manual.
+
+- ⬜ 2. Modelos
+- Dejar únicamente lo que realmente pertenece al dominio.
+- Eliminar definitivamente los modelos que ya decidimos retirar.
+- Convocatoria.documento y ActaAsamblea.documento como archivos PDF para MinIO.
+- Condominio.propiedad_cantidad.
+- Revisar relaciones, PROTECT, CASCADE, índices y restricciones.
+
+- ⬜ 3.Migraciones
+- Como decidimos reiniciar limpio, generar las migraciones definitivas desde los modelos finales.
+
+- ⬜ 4.Casos de uso / endpoints
+- Comité.
+- Transferencia de administración.
+- Integrantes.
+- Convocatorias.
+- Actas.
+- Lo que ya esté terminado de los módulos anteriores.
+
+- ⬜ 5.Pruebas
+- Ejecutar los escenarios que ya hemos venido construyendo.
+- Revisar especialmente permisos y aislamiento por condominio.
+
+- ⬜ 6.Documentación
+- Reglas de negocio definitivas.
+- Swagger/OpenAPI.
+- Variables de entorno necesarias.
+- Configuración de producción.
+
+- ⬜ 7.Docker / producción
+- Dockerfile de producción.
+- docker-compose correspondiente.
+- PostgreSQL.
+- MinIO.
+- Traefik.
+- Variables y secretos.
+- Dominio/HTTPS.
+
+- ⬜ 8.Despliegue en Contabo
+- Levantar la aplicación.
+- Migrar BD.
+- Crear/validar superusuario o mecanismo administrativo correspondiente.
+- Probar desde fuera del servidor.
+- Hacer una prueba completa de los endpoints principales.

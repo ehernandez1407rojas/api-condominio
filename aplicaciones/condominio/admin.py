@@ -122,6 +122,16 @@ class CuotaAdmin(BaseAdmin):
 class CuotaCobradaAdmin(BaseAdmin):
     pass
 
+@admin.register(SubTipoGasto)
+class SubTipoGastoAdmin(BaseAdmin):
+    pass
+
+@admin.register(SituacionProveedor)
+class SituacionProveedorAdmin(BaseAdmin):
+    pass
+
+
+
 
 
 """ 
